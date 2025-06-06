@@ -4,7 +4,7 @@ import { Product } from '../models/Product';
 import { Producer } from '../models/Producer';
 
 // Get all products (for customers)
-export const getAllProducts = async (req: Request, res: Response) => {
+export const getAllProducts = async (_req: Request, res: Response): Promise<void> => {
   try {
     const productRepository = AppDataSource.getRepository(Product);
     const products = await productRepository.find({
@@ -19,7 +19,7 @@ export const getAllProducts = async (req: Request, res: Response) => {
 };
 
 // Get products by producer (for producer's admin panel)
-export const getProducerProducts = async (req: Request, res: Response) => {
+export const getProducerProducts = async (req: Request, res: Response): Promise<void> => {
   try {
     const productRepository = AppDataSource.getRepository(Product);
     const producerId = req.user?.userId;
@@ -34,7 +34,7 @@ export const getProducerProducts = async (req: Request, res: Response) => {
 };
 
 // Create new product (for producers)
-export const createProduct = async (req: Request, res: Response) => {
+export const createProduct = async (req: Request, res: Response): Promise<void> => {
   try {
     const productRepository = AppDataSource.getRepository(Product);
     const producerRepository = AppDataSource.getRepository(Producer);
@@ -44,7 +44,8 @@ export const createProduct = async (req: Request, res: Response) => {
     });
 
     if (!producer) {
-      return res.status(404).json({ message: 'Producer not found' });
+      res.status(404).json({ message: 'Producer not found' });
+      return;
     }
 
     const product = new Product();
@@ -60,7 +61,7 @@ export const createProduct = async (req: Request, res: Response) => {
 };
 
 // Update product (for producers)
-export const updateProduct = async (req: Request, res: Response) => {
+export const updateProduct = async (req: Request, res: Response): Promise<void> => {
   try {
     const productRepository = AppDataSource.getRepository(Product);
     const { id } = req.params;
@@ -74,7 +75,8 @@ export const updateProduct = async (req: Request, res: Response) => {
     });
 
     if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+      res.status(404).json({ message: 'Product not found' });
+      return;
     }
 
     Object.assign(product, req.body);
@@ -87,7 +89,7 @@ export const updateProduct = async (req: Request, res: Response) => {
 };
 
 // Delete product (for producers)
-export const deleteProduct = async (req: Request, res: Response) => {
+export const deleteProduct = async (req: Request, res: Response): Promise<void> => {
   try {
     const productRepository = AppDataSource.getRepository(Product);
     const { id } = req.params;
@@ -101,7 +103,8 @@ export const deleteProduct = async (req: Request, res: Response) => {
     });
 
     if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+      res.status(404).json({ message: 'Product not found' });
+      return;
     }
 
     await productRepository.remove(product);
@@ -110,4 +113,4 @@ export const deleteProduct = async (req: Request, res: Response) => {
     console.error('Error deleting product:', error);
     res.status(500).json({ message: 'Error deleting product' });
   }
-}; 
+};

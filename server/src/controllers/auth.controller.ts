@@ -7,7 +7,7 @@ import { Customer } from '../models/Customer';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-export const register = async (req: Request, res: Response) => {
+export const register = async (req: Request, res: Response): Promise<void> => {
   try {
     const userRepository = AppDataSource.getRepository(User);
     const producerRepository = AppDataSource.getRepository(Producer);
@@ -18,7 +18,8 @@ export const register = async (req: Request, res: Response) => {
     // Check if user already exists
     const existingUser = await userRepository.findOne({ where: { email } });
     if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
+      res.status(400).json({ message: 'User already exists' });
+      return;
     }
 
     // Create new user
@@ -73,7 +74,7 @@ export const register = async (req: Request, res: Response) => {
   }
 };
 
-export const login = async (req: Request, res: Response) => {
+export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const userRepository = AppDataSource.getRepository(User);
     const producerRepository = AppDataSource.getRepository(Producer);
@@ -84,13 +85,15 @@ export const login = async (req: Request, res: Response) => {
     // Find user
     const user = await userRepository.findOne({ where: { email } });
     if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      res.status(401).json({ message: 'Invalid credentials' });
+      return;
     }
 
     // Check password
     const isValidPassword = await user.checkPassword(password);
     if (!isValidPassword) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      res.status(401).json({ message: 'Invalid credentials' });
+      return;
     }
 
     // Get profile data based on role
@@ -127,4 +130,4 @@ export const login = async (req: Request, res: Response) => {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Error logging in' });
   }
-}; 
+};

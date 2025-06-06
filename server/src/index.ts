@@ -53,7 +53,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
