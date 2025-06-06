@@ -1,9 +1,12 @@
 
 import React, { useState } from 'react';
 import { User, Package, MapPin, Settings, LogOut, Edit2, CreditCard, Bell, Shield, Gift, Star } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { logout } from '@/lib/auth';
 
 const CustomerAccount = () => {
   const [activeTab, setActiveTab] = useState('profil');
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({
     prenom: 'Marie',
@@ -61,9 +64,13 @@ const CustomerAccount = () => {
     setIsEditing(false);
     console.log('Profil sauvegardé:', profileData);
   };
-
   const handleRateOrder = (orderId: number, rating: number) => {
     console.log(`Commande ${orderId} notée: ${rating}/5`);
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
   };
 
   const tabs = [
@@ -81,8 +88,10 @@ const CustomerAccount = () => {
       <div className="bg-white rounded-xl shadow-sm">
         <div className="border-b border-gray-200">
           <div className="flex items-center justify-between p-6">
-            <h1 className="text-2xl font-bold text-gray-900">Mon Compte Client</h1>
-            <button className="flex items-center space-x-2 text-red-600 hover:text-red-700 transition-colors">
+            <h1 className="text-2xl font-bold text-gray-900">Mon Compte Client</h1>            <button 
+              onClick={handleLogout}
+              className="flex items-center space-x-2 text-red-600 hover:text-red-700 transition-colors"
+            >
               <LogOut size={18} />
               <span>Déconnexion</span>
             </button>

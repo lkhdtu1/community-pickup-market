@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ShoppingCart, User, Search, LogIn } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthModal from './AuthModal';
-import { getCurrentUser, logout, isAuthenticated } from '@/lib/auth';
+import { getCurrentUser, logout, isAuthenticated, validateSession } from '@/lib/auth';
 
 interface HeaderProps {
   cartItemsCount: number;
@@ -18,12 +18,18 @@ const Header = ({ cartItemsCount, onCartClick, onSearch }: HeaderProps) => {
   const [user, setUser] = useState<any>(null);
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-
   useEffect(() => {
-    const user = getCurrentUser();
-    if (user) {
-      setUser(user);
-    }
+    const initializeAuth = async () => {
+      try {
+        const user = await validateSession();
+        setUser(user);
+      } catch (error) {
+        // If validation fails, clear user state
+        setUser(null);
+      }
+    };
+    
+    initializeAuth();
   }, []);
 
   const handleAuthClick = (mode: 'login' | 'signup') => {
@@ -31,11 +37,15 @@ const Header = ({ cartItemsCount, onCartClick, onSearch }: HeaderProps) => {
     setUserType('customer');
     setIsAuthModalOpen(true);
   };
-
   const handleLogout = () => {
     logout();
     setUser(null);
     navigate('/');
+  };
+
+  const handleAuthSuccess = () => {
+    const updatedUser = getCurrentUser();
+    setUser(updatedUser);
   };
 
   return (
@@ -160,13 +170,12 @@ const Header = ({ cartItemsCount, onCartClick, onSearch }: HeaderProps) => {
             </div>
           )}
         </div>
-      </header>
-
-      <AuthModal
+      </header>      <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         defaultMode={authMode}
         userType={userType}
+        onAuthSuccess={handleAuthSuccess}
       />
     </>
   );

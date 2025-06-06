@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { DataSource } from 'typeorm';
 import authRoutes from './routes/auth.routes';
 import productRoutes from './routes/product.routes';
+import userRoutes from './routes/user.routes';
 import { User } from './models/User';
 import { Producer } from './models/Producer';
 import { Customer } from './models/Customer';
@@ -51,6 +52,7 @@ AppDataSource.initialize()
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/users', userRoutes);
 
 // Health check endpoint
 app.get('/health', (_req, res) => {

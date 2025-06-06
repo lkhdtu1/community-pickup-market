@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
 import { User, Package, BarChart3, Settings, LogOut, Store, ShoppingCart, TrendingUp } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { logout } from '@/lib/auth';
 import ProductManagement from './ProductManagement';
 import OrderManagement from './OrderManagement';
 import ProducerAnalytics from './ProducerAnalytics';
 import ProducerProfile from './ProducerProfile';
 
-const ProviderAccount = () => {
-  const [activeTab, setActiveTab] = useState('dashboard');
+const ProviderAccount = () => {  const [activeTab, setActiveTab] = useState('dashboard');
   const [hasShop, setHasShop] = useState(true); // Changé à true pour montrer l'interface complète
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
 
   const tabs = [
     { id: 'dashboard', label: 'Tableau de bord', icon: BarChart3 },
@@ -74,8 +80,10 @@ const ProviderAccount = () => {
       <div className="bg-white rounded-xl shadow-sm">
         <div className="border-b border-gray-200">
           <div className="flex items-center justify-between p-6">
-            <h1 className="text-2xl font-bold text-gray-900">Espace Producteur</h1>
-            <button className="flex items-center space-x-2 text-red-600 hover:text-red-700 transition-colors">
+            <h1 className="text-2xl font-bold text-gray-900">Espace Producteur</h1>            <button 
+              onClick={handleLogout}
+              className="flex items-center space-x-2 text-red-600 hover:text-red-700 transition-colors"
+            >
               <LogOut size={18} />
               <span>Déconnexion</span>
             </button>

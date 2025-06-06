@@ -9,14 +9,13 @@ export class Producer {
   @OneToOne(() => User)
   @JoinColumn()
   user: User;
-
   @Column()
   shopName: string;
 
-  @Column('text')
+  @Column('text', { nullable: true })
   description: string;
 
-  @Column()
+  @Column({ nullable: true })
   address: string;
 
   @Column('text', { array: true, nullable: true })
