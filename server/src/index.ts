@@ -4,11 +4,14 @@ import dotenv from 'dotenv';
 import { DataSource } from 'typeorm';
 import authRoutes from './routes/auth.routes';
 import productRoutes from './routes/product.routes';
+import producerRoutes from './routes/producer.routes';
+import orderRoutes from './routes/order.routes';
 import userRoutes from './routes/user.routes';
 import { User } from './models/User';
 import { Producer } from './models/Producer';
 import { Customer } from './models/Customer';
 import { Product } from './models/Product';
+import { Order, OrderItem } from './models/Order';
 
 // Load environment variables
 dotenv.config();
@@ -35,7 +38,7 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_NAME || 'community_market',
   synchronize: true,
   logging: true,
-  entities: [User, Producer, Customer, Product],
+  entities: [User, Producer, Customer, Product, Order, OrderItem],
   subscribers: [],
   migrations: [],
 });
@@ -52,6 +55,8 @@ AppDataSource.initialize()
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/producers', producerRoutes);
+app.use('/api/orders', orderRoutes);
 app.use('/api/users', userRoutes);
 
 // Health check endpoint

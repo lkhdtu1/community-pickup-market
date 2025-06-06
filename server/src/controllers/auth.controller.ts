@@ -5,7 +5,7 @@ import { User, UserRole } from '../models/User';
 import { Producer } from '../models/Producer';
 import { Customer } from '../models/Customer';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -98,9 +98,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     if (!isValidPassword) {
       res.status(401).json({ message: 'Invalid credentials' });
       return;
-    }
-
-    // Verify role matches if provided
+    }    // Verify role matches if provided
     if (role && user.role !== role) {
       res.status(401).json({ message: 'Invalid credentials for this account type' });
       return;

@@ -2,16 +2,38 @@ import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import ProductCard from '../components/ProductCard';
 import ProductFilters from '../components/ProductFilters';
-import { mockProducts } from '../data/mockData';
 import { useLocation } from 'react-router-dom';
+import { api } from '@/lib/api';
+
+interface Product {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  unit: string;
+  stock: number;
+  category: string;
+  imageUrl: string;
+  producer: {
+    id: number;
+    name: string;
+  };
+}
 
 const ProductsPage = () => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedProducer, setSelectedProducer] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [producers, setProducers] = useState<{ id: number; name: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   const location = useLocation();
-
-  const [searchQuery, setSearchQuery] = useState('');
+  useEffect(() => {
+    loadProducts();
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -23,27 +45,39 @@ const ProductsPage = () => {
     }
 
     if (producerId) {
-      // Assuming producerId from URL matches the producer name or a unique identifier in mockProducts
-      // If using a database, you might need to fetch the producer by ID first to get the name
-      const producer = mockProducts.find(p => p.producer === producerId || p.id.toString() === producerId);
-      if (producer) {
-        setSelectedProducer(producer.producer);
-      } else {
-        setSelectedProducer(''); // Clear producer if ID not found
-      }
+      setSelectedProducer(producerId);
     } else {
-      setSelectedProducer(''); // Clear producer if no ID in URL
+      setSelectedProducer('');
     }
   }, [location.search]);
 
-  // Extract unique categories and producers from mock data
-  const categories = Array.from(new Set(mockProducts.map(product => product.category)));
-  const producers = Array.from(new Set(mockProducts.map(product => product.producer)));
-
+  const loadProducts = async () => {
+    try {
+      setLoading(true);
+      const data = await api.products.getProducts();
+      setProducts(data);
+      
+      // Extract unique categories and producers
+      const uniqueCategories = Array.from(new Set(data.map(product => product.category)));
+      const uniqueProducers = Array.from(new Set(data.map(product => ({
+        id: product.producer.id,
+        name: product.producer.name
+      })).map(p => JSON.stringify(p)))).map(p => JSON.parse(p));
+      
+      setCategories(uniqueCategories);
+      setProducers(uniqueProducers);
+      setError(null);
+    } catch (err) {
+      console.error('Error loading products:', err);
+      setError('Erreur lors du chargement des produits');
+    } finally {
+      setLoading(false);
+    }
+  };
   // Filter products based on selected category and producer
-  const filteredProducts = mockProducts.filter(product => {
+  const filteredProducts = products.filter(product => {
     const categoryMatch = selectedCategory === "" || product.category === selectedCategory;
-    const producerMatch = selectedProducer === "" || product.producer === selectedProducer;
+    const producerMatch = selectedProducer === "" || product.producer.id.toString() === selectedProducer;
     const searchMatch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         product.description?.toLowerCase().includes(searchQuery.toLowerCase());
     return categoryMatch && producerMatch && searchMatch;
@@ -60,27 +94,84 @@ const ProductsPage = () => {
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Tous les produits</h1>
         
         <div className="flex flex-col lg:flex-row gap-8">
-          <div className="lg:w-1/4">
-            <ProductFilters 
+          <div className="lg:w-1/4">            <ProductFilters 
               categories={categories}
-              producers={producers}
+              producers={producers.map(p => p.name)}
               selectedCategory={selectedCategory}
               selectedProducer={selectedProducer}
               onCategoryChange={setSelectedCategory}
               onProducerChange={setSelectedProducer}
             />
           </div>
-          
-          <div className="lg:w-3/4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onAddToCart={() => {}}
-                />
-              ))}
-            </div>
+            <div className="lg:w-3/4">
+            {loading && (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+                <p className="mt-4 text-gray-600">Chargement des produits...</p>
+              </div>
+            )}
+
+            {error && (
+              <div className="text-center py-8">
+                <p className="text-red-600 mb-4">{error}</p>
+                <button 
+                  onClick={loadProducts}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                >
+                  Réessayer
+                </button>
+              </div>
+            )}
+
+            {!loading && !error && (
+              <>
+                <div className="mb-4 text-gray-600">
+                  {filteredProducts.length} produit{filteredProducts.length > 1 ? 's' : ''} trouvé{filteredProducts.length > 1 ? 's' : ''}
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredProducts.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={{
+                        id: product.id,
+                        name: product.name,
+                        price: product.price,
+                        unit: product.unit,
+                        producer: product.producer.name,
+                        image: product.imageUrl,
+                        stock: product.stock,
+                        category: product.category,
+                        description: product.description
+                      }}                      onAddToCart={(productData) => {
+                        // Transform API product to cart item format
+                        const cartItem = {
+                          id: product.id,
+                          name: product.name,
+                          price: product.price,
+                          unit: product.unit,
+                          producer: product.producer.name,
+                          image: product.imageUrl,
+                          stock: product.stock,
+                          category: product.category,
+                          description: product.description,
+                          quantity: 1
+                        };
+                        // In a real app, this would be managed by a global cart context
+                        console.log('Add to cart:', cartItem);
+                        alert(`${product.name} ajouté au panier !`);
+                      }}
+                    />
+                  ))}
+                </div>
+
+                {filteredProducts.length === 0 && (
+                  <div className="text-center py-8">
+                    <p className="text-gray-600">Aucun produit trouvé avec ces critères.</p>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       </div>

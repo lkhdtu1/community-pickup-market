@@ -4,14 +4,60 @@ import { Product } from '../models/Product';
 import { Producer } from '../models/Producer';
 
 // Get all products (for customers)
-export const getAllProducts = async (_req: Request, res: Response): Promise<void> => {
+export const getAllProducts = async (req: Request, res: Response): Promise<void> => {
   try {
     const productRepository = AppDataSource.getRepository(Product);
-    const products = await productRepository.find({
-      relations: ['producer'],
-      where: { isAvailable: true }
-    });
-    res.json(products);
+    const { category, producer, search } = req.query;
+
+    // Build query conditions
+    const whereConditions: any = { isAvailable: true };
+    
+    if (category) {
+      whereConditions.category = category;
+    }
+
+    // Get products with producer information
+    const queryBuilder = productRepository.createQueryBuilder('product')
+      .leftJoinAndSelect('product.producer', 'producer')
+      .leftJoinAndSelect('producer.user', 'user')
+      .where('product.isAvailable = :isAvailable', { isAvailable: true });
+
+    if (category) {
+      queryBuilder.andWhere('product.category = :category', { category });
+    }
+
+    if (producer) {
+      queryBuilder.andWhere('producer.shopName ILIKE :producer', { producer: `%${producer}%` });
+    }
+
+    if (search) {
+      queryBuilder.andWhere(
+        '(product.name ILIKE :search OR product.description ILIKE :search OR producer.shopName ILIKE :search)',
+        { search: `%${search}%` }
+      );
+    }
+
+    queryBuilder.orderBy('product.createdAt', 'DESC');
+
+    const products = await queryBuilder.getMany();
+
+    // Format products for frontend
+    const formattedProducts = products.map(product => ({
+      id: product.id,
+      name: product.name,
+      price: parseFloat(product.price.toString()),
+      unit: product.unit,
+      category: product.category,
+      description: product.description,
+      image: product.images?.[0] || '/placeholder.svg',
+      images: product.images || [],
+      producer: product.producer.shopName,
+      producerId: product.producer.id,
+      stock: product.stock,
+      isAvailable: product.isAvailable
+    }));
+
+    res.json(formattedProducts);
   } catch (error) {
     console.error('Error fetching products:', error);
     res.status(500).json({ message: 'Error fetching products' });
@@ -22,11 +68,50 @@ export const getAllProducts = async (_req: Request, res: Response): Promise<void
 export const getProducerProducts = async (req: Request, res: Response): Promise<void> => {
   try {
     const productRepository = AppDataSource.getRepository(Product);
-    const producerId = req.user?.userId;
-    const products = await productRepository.find({
-      where: { producer: { user: { id: producerId } } }
+    const producerRepository = AppDataSource.getRepository(Producer);
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ message: 'User not authenticated' });
+      return;
+    }
+
+    // Find producer by user ID
+    const producer = await producerRepository.findOne({
+      where: { user: { id: userId } },
+      relations: ['user']
     });
-    res.json(products);
+
+    if (!producer) {
+      res.status(404).json({ message: 'Producer profile not found' });
+      return;
+    }
+
+    // Get all products for this producer
+    const products = await productRepository.find({
+      where: { producer: { id: producer.id } },
+      relations: ['producer'],
+      order: { createdAt: 'DESC' }
+    });
+
+    // Format products for frontend
+    const formattedProducts = products.map(product => ({
+      id: product.id,
+      name: product.name,
+      price: parseFloat(product.price.toString()),
+      stock: product.stock,
+      category: product.category,
+      image: product.images?.[0] || '/placeholder.svg',
+      images: product.images || [],
+      status: product.stock === 0 ? 'rupture' : (product.isAvailable ? 'active' : 'inactive'),
+      description: product.description,
+      unit: product.unit,
+      isAvailable: product.isAvailable,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt
+    }));
+
+    res.json(formattedProducts);
   } catch (error) {
     console.error('Error fetching producer products:', error);
     res.status(500).json({ message: 'Error fetching producer products' });
@@ -38,22 +123,73 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
   try {
     const productRepository = AppDataSource.getRepository(Product);
     const producerRepository = AppDataSource.getRepository(Producer);
-    const producerId = req.user?.userId;
-    const producer = await producerRepository.findOne({
-      where: { user: { id: producerId } }
-    });
+    const userId = req.user?.userId;
 
-    if (!producer) {
-      res.status(404).json({ message: 'Producer not found' });
+    if (!userId) {
+      res.status(401).json({ message: 'User not authenticated' });
       return;
     }
 
+    // Find producer by user ID
+    const producer = await producerRepository.findOne({
+      where: { user: { id: userId } },
+      relations: ['user']
+    });
+
+    if (!producer) {
+      res.status(404).json({ message: 'Producer profile not found' });
+      return;
+    }
+
+    const { 
+      name, 
+      price, 
+      stock, 
+      category, 
+      unit, 
+      description, 
+      images = ['/placeholder.svg'],
+      isAvailable = true 
+    } = req.body;
+
+    // Validate required fields
+    if (!name || !price || !unit || !category) {
+      res.status(400).json({ message: 'Missing required fields: name, price, unit, category' });
+      return;
+    }
+
+    // Create new product
     const product = new Product();
-    Object.assign(product, req.body);
+    product.name = name;
+    product.price = parseFloat(price);
+    product.stock = parseInt(stock) || 0;
+    product.category = category;
+    product.unit = unit;
+    product.description = description || '';
+    product.images = Array.isArray(images) ? images : [images || '/placeholder.svg'];
+    product.isAvailable = isAvailable;
     product.producer = producer;
 
-    await productRepository.save(product);
-    res.status(201).json(product);
+    const savedProduct = await productRepository.save(product);
+
+    // Format response for frontend
+    const formattedProduct = {
+      id: savedProduct.id,
+      name: savedProduct.name,
+      price: parseFloat(savedProduct.price.toString()),
+      stock: savedProduct.stock,
+      category: savedProduct.category,
+      image: savedProduct.images[0],
+      images: savedProduct.images,
+      status: savedProduct.stock === 0 ? 'rupture' : (savedProduct.isAvailable ? 'active' : 'inactive'),
+      description: savedProduct.description,
+      unit: savedProduct.unit,
+      isAvailable: savedProduct.isAvailable,
+      createdAt: savedProduct.createdAt,
+      updatedAt: savedProduct.updatedAt
+    };
+
+    res.status(201).json(formattedProduct);
   } catch (error) {
     console.error('Error creating product:', error);
     res.status(500).json({ message: 'Error creating product' });
@@ -64,24 +200,81 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
 export const updateProduct = async (req: Request, res: Response): Promise<void> => {
   try {
     const productRepository = AppDataSource.getRepository(Product);
+    const producerRepository = AppDataSource.getRepository(Producer);
     const { id } = req.params;
-    const producerId = req.user?.userId;
+    const userId = req.user?.userId;
 
-    const product = await productRepository.findOne({
-      where: { 
-        id,
-        producer: { user: { id: producerId } }
-      }
-    });
-
-    if (!product) {
-      res.status(404).json({ message: 'Product not found' });
+    if (!userId) {
+      res.status(401).json({ message: 'User not authenticated' });
       return;
     }
 
-    Object.assign(product, req.body);
-    await productRepository.save(product);
-    res.json(product);
+    // Find producer by user ID
+    const producer = await producerRepository.findOne({
+      where: { user: { id: userId } },
+      relations: ['user']
+    });
+
+    if (!producer) {
+      res.status(404).json({ message: 'Producer profile not found' });
+      return;
+    }
+
+    // Find product belonging to this producer
+    const product = await productRepository.findOne({
+      where: { 
+        id,
+        producer: { id: producer.id }
+      },
+      relations: ['producer']
+    });
+
+    if (!product) {
+      res.status(404).json({ message: 'Product not found or you do not have permission to edit it' });
+      return;
+    }
+
+    const { 
+      name, 
+      price, 
+      stock, 
+      category, 
+      unit, 
+      description, 
+      images,
+      isAvailable 
+    } = req.body;
+
+    // Update product fields
+    if (name !== undefined) product.name = name;
+    if (price !== undefined) product.price = parseFloat(price);
+    if (stock !== undefined) product.stock = parseInt(stock);
+    if (category !== undefined) product.category = category;
+    if (unit !== undefined) product.unit = unit;
+    if (description !== undefined) product.description = description;
+    if (images !== undefined) product.images = Array.isArray(images) ? images : [images];
+    if (isAvailable !== undefined) product.isAvailable = isAvailable;
+
+    const savedProduct = await productRepository.save(product);
+
+    // Format response for frontend
+    const formattedProduct = {
+      id: savedProduct.id,
+      name: savedProduct.name,
+      price: parseFloat(savedProduct.price.toString()),
+      stock: savedProduct.stock,
+      category: savedProduct.category,
+      image: savedProduct.images[0],
+      images: savedProduct.images,
+      status: savedProduct.stock === 0 ? 'rupture' : (savedProduct.isAvailable ? 'active' : 'inactive'),
+      description: savedProduct.description,
+      unit: savedProduct.unit,
+      isAvailable: savedProduct.isAvailable,
+      createdAt: savedProduct.createdAt,
+      updatedAt: savedProduct.updatedAt
+    };
+
+    res.json(formattedProduct);
   } catch (error) {
     console.error('Error updating product:', error);
     res.status(500).json({ message: 'Error updating product' });
@@ -92,18 +285,37 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
 export const deleteProduct = async (req: Request, res: Response): Promise<void> => {
   try {
     const productRepository = AppDataSource.getRepository(Product);
+    const producerRepository = AppDataSource.getRepository(Producer);
     const { id } = req.params;
-    const producerId = req.user?.userId;
+    const userId = req.user?.userId;
 
+    if (!userId) {
+      res.status(401).json({ message: 'User not authenticated' });
+      return;
+    }
+
+    // Find producer by user ID
+    const producer = await producerRepository.findOne({
+      where: { user: { id: userId } },
+      relations: ['user']
+    });
+
+    if (!producer) {
+      res.status(404).json({ message: 'Producer profile not found' });
+      return;
+    }
+
+    // Find product belonging to this producer
     const product = await productRepository.findOne({
       where: { 
         id,
-        producer: { user: { id: producerId } }
-      }
+        producer: { id: producer.id }
+      },
+      relations: ['producer']
     });
 
     if (!product) {
-      res.status(404).json({ message: 'Product not found' });
+      res.status(404).json({ message: 'Product not found or you do not have permission to delete it' });
       return;
     }
 
@@ -112,5 +324,51 @@ export const deleteProduct = async (req: Request, res: Response): Promise<void> 
   } catch (error) {
     console.error('Error deleting product:', error);
     res.status(500).json({ message: 'Error deleting product' });
+  }
+};
+
+// Get single product by ID (for customers)
+export const getProductById = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const productRepository = AppDataSource.getRepository(Product);
+    const { id } = req.params;
+
+    const product = await productRepository.findOne({
+      where: { id, isAvailable: true },
+      relations: ['producer', 'producer.user']
+    });
+
+    if (!product) {
+      res.status(404).json({ message: 'Product not found' });
+      return;
+    }
+
+    // Format product for frontend
+    const formattedProduct = {
+      id: product.id,
+      name: product.name,
+      price: parseFloat(product.price.toString()),
+      unit: product.unit,
+      category: product.category,
+      description: product.description,
+      image: product.images?.[0] || '/placeholder.svg',
+      images: product.images || [],
+      producer: product.producer.shopName,
+      producerId: product.producer.id,
+      stock: product.stock,
+      isAvailable: product.isAvailable,
+      producerInfo: {
+        id: product.producer.id,
+        shopName: product.producer.shopName,
+        description: product.producer.description,
+        address: product.producer.address,
+        pickupInfo: product.producer.pickupInfo
+      }
+    };
+
+    res.json(formattedProduct);
+  } catch (error) {
+    console.error('Error fetching product:', error);
+    res.status(500).json({ message: 'Error fetching product' });
   }
 };

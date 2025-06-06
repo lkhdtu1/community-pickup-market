@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { AppDataSource } from '../index';
 import { User } from '../models/User';
 import { Producer } from '../models/Producer';
+import { Product } from '../models/Product';
 
 // Get producer profile
 export const getProducerProfile = async (req: Request, res: Response): Promise<void> => {
@@ -147,65 +148,107 @@ export const getProducerStats = async (_req: Request, res: Response): Promise<vo
       ]
     };
 
-    res.json(mockStats);
+  res.json(mockStats);
   } catch (error) {
     console.error('Get producer stats error:', error);
     res.status(500).json({ message: 'Error fetching producer statistics' });
   }
 };
 
-// Get producer orders
-export const getProducerOrders = async (_req: Request, res: Response): Promise<void> => {
-  try {
-    // For now, return mock data since Order entity doesn't exist yet
-    const mockOrders = [
-      {
-        id: 1,
-        customer: 'Marie Dupont',
-        date: '2024-01-15',
-        total: 45.80,
-        status: 'pending',
-        items: [
-          { name: 'Tomates bio', quantity: 2, price: 15.80 },
-          { name: 'Pain artisanal', quantity: 1, price: 8.50 },
-          { name: 'Miel de lavande', quantity: 1, price: 21.50 }
-        ],
-        pickupTime: '2024-01-16 14:00',
-        notes: 'Prévoir sac réutilisable'
-      },
-      {
-        id: 2,
-        customer: 'Jean Petit',
-        date: '2024-01-14',
-        total: 32.50,
-        status: 'ready',
-        items: [
-          { name: 'Fromage de chèvre', quantity: 1, price: 18.00 },
-          { name: 'Salade verte', quantity: 2, price: 7.25 },
-          { name: 'Œufs fermiers', quantity: 1, price: 7.25 }
-        ],
-        pickupTime: '2024-01-15 16:30',
-        notes: ''
-      },
-      {
-        id: 3,
-        customer: 'Sophie Laurent',
-        date: '2024-01-13',
-        total: 68.90,
-        status: 'completed',
-        items: [
-          { name: 'Panier légumes de saison', quantity: 1, price: 35.00 },
-          { name: 'Viande locale', quantity: 1, price: 25.90 },
-          { name: 'Fruits bio', quantity: 1, price: 8.00 }
-        ],
-        pickupTime: '2024-01-14 10:00',
-        notes: 'Client régulier'
-      }
-    ];
+// Note: Producer orders are now handled by the order controller
 
-    res.json(mockOrders);
+// Get all producers (for customers to browse)
+export const getAllProducers = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const producerRepository = AppDataSource.getRepository(Producer);
+    const { search } = req.query;
+
+    const queryBuilder = producerRepository.createQueryBuilder('producer')
+      .leftJoinAndSelect('producer.user', 'user')
+      .where('producer.isActive = :isActive', { isActive: true });
+
+    if (search) {
+      queryBuilder.andWhere(
+        '(producer.shopName ILIKE :search OR producer.description ILIKE :search)',
+        { search: `%${search}%` }
+      );
+    }
+
+    queryBuilder.orderBy('producer.createdAt', 'DESC');
+
+    const producers = await queryBuilder.getMany();
+
+    // Format producers for frontend
+    const formattedProducers = producers.map(producer => ({
+      id: producer.id,
+      name: producer.shopName,
+      description: producer.description || 'Producteur local passionné',
+      specialties: producer.certifications || [],
+      image: '/placeholder.svg', // You can add an image field to Producer model later
+      location: producer.address || 'Adresse non renseignée',
+      pickupInfo: producer.pickupInfo,
+      certifications: producer.certifications,
+      isActive: producer.isActive
+    }));
+
+    res.json(formattedProducers);
   } catch (error) {
-    console.error('Get producer orders error:', error);
-    res.status(500).json({ message: 'Error fetching orders' });
+    console.error('Error fetching producers:', error);
+    res.status(500).json({ message: 'Error fetching producers' });
+  }
+};
+
+// Get producer public profile (for customers)
+export const getProducerPublicProfile = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const producerRepository = AppDataSource.getRepository(Producer);
+    const productRepository = AppDataSource.getRepository(Product);
+    const { id } = req.params;
+
+    const producer = await producerRepository.findOne({
+      where: { id, isActive: true },
+      relations: ['user']
+    });
+
+    if (!producer) {
+      res.status(404).json({ message: 'Producer not found' });
+      return;
+    }
+
+    // Get producer's available products
+    const products = await productRepository.find({
+      where: { 
+        producer: { id: producer.id },
+        isAvailable: true
+      },
+      order: { createdAt: 'DESC' }
+    });
+
+    // Format products
+    const formattedProducts = products.map(product => ({
+      id: product.id,
+      name: product.name,
+      price: parseFloat(product.price.toString()),
+      unit: product.unit,
+      category: product.category,
+      image: product.images?.[0] || '/placeholder.svg',
+      stock: product.stock
+    }));
+
+    const formattedProducer = {
+      id: producer.id,
+      name: producer.shopName,
+      description: producer.description,
+      address: producer.address,
+      certifications: producer.certifications || [],
+      pickupInfo: producer.pickupInfo,
+      products: formattedProducts,
+      productsCount: formattedProducts.length
+    };
+
+    res.json(formattedProducer);
+  } catch (error) {
+    console.error('Error fetching producer public profile:', error);
+    res.status(500).json({ message: 'Error fetching producer profile' });
   }
 };

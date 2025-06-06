@@ -1,5 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToOne, OneToMany, JoinColumn } from 'typeorm';
 import { User } from './User';
+import { Order } from './Order';
 
 @Entity('customers')
 export class Customer {
@@ -21,13 +22,15 @@ export class Customer {
 
   @Column({ nullable: true })
   address: string;
-
   @Column('jsonb', { nullable: true })
   preferences: {
     favoriteCategories: string[];
     notifications: boolean;
     newsletter: boolean;
   };
+
+  @OneToMany(() => Order, order => order.customer)
+  orders: Order[];
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;

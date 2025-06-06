@@ -1,46 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Eye, Package, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { productsAPI } from '@/lib/api';
 
 interface Product {
-  id: number;
+  id: string;
   name: string;
   price: number;
   stock: number;
   category: string;
-  image: string;
+  images: string[];
   status: 'active' | 'inactive' | 'rupture';
   description?: string;
   unit: string;
+  isActive: boolean;
 }
 
 const ProductManagement = () => {
-  const [products, setProducts] = useState<Product[]>([
-    {
-      id: 1,
-      name: 'Tomates bio',
-      price: 4.50,
-      stock: 25,
-      category: 'Légumes',
-      image: '/placeholder.svg',
-      status: 'active',
-      unit: 'kg'
-    },
-    {
-      id: 2,
-      name: 'Miel de lavande',
-      price: 12.00,
-      stock: 0,
-      category: 'Épicerie',
-      image: '/placeholder.svg',
-      status: 'rupture',
-      unit: 'pot'
-    }
-  ]);
-
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newProduct, setNewProduct] = useState({
@@ -52,40 +34,81 @@ const ProductManagement = () => {
     unit: 'kg'
   });
 
+  // Load products on component mount
+  useEffect(() => {
+    loadProducts();
+  }, []);
+
+  const loadProducts = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await productsAPI.getMyProducts();
+      setProducts(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load products');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
-
-  const handleAddProduct = (e: React.FormEvent) => {
+  const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    const product: Product = {
-      id: Date.now(),
-      name: newProduct.name,
-      price: parseFloat(newProduct.price),
-      stock: parseInt(newProduct.stock),
-      category: newProduct.category,
-      image: '/placeholder.svg',
-      status: 'active',
-      unit: newProduct.unit
-    };
-    setProducts([...products, product]);
-    setNewProduct({ name: '', price: '', stock: '', category: 'Légumes', description: '', unit: 'kg' });
-    setIsAddingProduct(false);
+    try {
+      const productData = {
+        name: newProduct.name,
+        description: newProduct.description,
+        price: parseFloat(newProduct.price),
+        stock: parseInt(newProduct.stock),
+        category: newProduct.category,
+        unit: newProduct.unit,
+        images: ['/placeholder.svg'],
+        isActive: true
+      };
+      
+      const createdProduct = await productsAPI.create(productData);
+      setProducts([...products, createdProduct]);
+      setNewProduct({ name: '', price: '', stock: '', category: 'Légumes', description: '', unit: 'kg' });
+      setIsAddingProduct(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create product');
+    }
   };
 
-  const handleDeleteProduct = (id: number) => {
-    setProducts(products.filter(p => p.id !== id));
+  const handleDeleteProduct = async (id: string) => {
+    try {
+      await productsAPI.delete(id);
+      setProducts(products.filter(p => p.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete product');
+    }
   };
 
-  const handleUpdateProduct = (e: React.FormEvent) => {
+  const handleUpdateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
 
-    setProducts(products.map(product =>
-      product.id === editingProduct.id ? { ...editingProduct, 
+    try {
+      const updateData = {
+        name: editingProduct.name,
+        description: editingProduct.description || '',
         price: parseFloat(editingProduct.price as any),
         stock: parseInt(editingProduct.stock as any),
-      } : product
-    ));
-    setEditingProduct(null);
+        category: editingProduct.category,
+        unit: editingProduct.unit,
+        images: editingProduct.images || ['/placeholder.svg'],
+        isActive: editingProduct.isActive
+      };
+      
+      const updatedProduct = await productsAPI.update(editingProduct.id, updateData);
+      setProducts(products.map(product =>
+        product.id === editingProduct.id ? updatedProduct : product
+      ));
+      setEditingProduct(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update product');
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -100,7 +123,6 @@ const ProductManagement = () => {
         return <Badge>{status}</Badge>;
     }
   };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -110,6 +132,22 @@ const ProductManagement = () => {
           Ajouter un produit
         </Button>
       </div>
+
+      {/* Error display */}
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          <div className="flex items-center">
+            <AlertCircle className="w-5 h-5 mr-2" />
+            <span>{error}</span>
+            <button
+              onClick={() => setError(null)}
+              className="ml-auto text-red-700 hover:text-red-900"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Stats rapides */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -293,9 +331,8 @@ const ProductManagement = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {products.map((product) => (
           <Card key={product.id}>
-            <CardContent className="p-4">
-              <img
-                src={product.image}
+            <CardContent className="p-4">              <img
+                src={product.images?.[0] || '/placeholder.svg'}
                 alt={product.name}
                 className="w-full h-32 object-cover rounded-lg mb-3"
               />

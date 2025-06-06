@@ -1,20 +1,57 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Star, Plus, Minus, ShoppingCart } from 'lucide-react';
 import Header from '../components/Header';
-import { mockProducts } from '../data/mockData';
 import { Button } from '../components/ui/button';
+import { api } from '@/lib/api';
+
+interface Product {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  unit: string;
+  stock: number;
+  category: string;
+  imageUrl: string;
+  producer: {
+    id: number;
+    name: string;
+    shopName?: string;
+  };
+}
 
 const ProductDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const product = mockProducts.find(p => p.id === parseInt(id || '0'));
+  useEffect(() => {
+    if (id) {
+      loadProduct(id);
+    }
+  }, [id]);
 
-  if (!product) {
+  const loadProduct = async (productId: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const productData = await api.products.getById(productId);
+      setProduct(productData);
+    } catch (err) {
+      console.error('Error loading product:', err);
+      setError('Erreur lors du chargement du produit');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header 
@@ -24,7 +61,34 @@ const ProductDetailPage = () => {
         />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Produit non trouvé</h1>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Chargement du produit...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (error || !product) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header 
+          cartItemsCount={0}
+          onCartClick={() => {}}
+          onSearch={() => {}}
+        />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">
+              {error || 'Produit non trouvé'}
+            </h1>
+            {error && (
+              <button
+                onClick={() => id && loadProduct(id)}
+                className="mb-4 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+              >
+                Réessayer
+              </button>
+            )}
             <Button onClick={() => navigate('/products')}>
               Retour aux produits
             </Button>
@@ -37,11 +101,23 @@ const ProductDetailPage = () => {
   const handleQuantityChange = (delta: number) => {
     setQuantity(Math.max(1, quantity + delta));
   };
-
   const handleAddToCart = () => {
-    // Add to cart logic here
-    console.log(`Added ${quantity} x ${product.name} to cart`);
-    // You can add a toast notification here
+    const cartItem = {
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      unit: product.unit,
+      producer: product.producer?.shopName || product.producer?.name || 'Unknown',
+      image: product.imageUrl || '/placeholder.svg',
+      stock: product.stock,
+      category: product.category,
+      description: product.description,
+      quantity: quantity
+    };
+    
+    // In a real app, this would be managed by a global cart context
+    console.log(`Added ${quantity} x ${product.name} to cart`, cartItem);
+    alert(`${quantity} x ${product.name} ajouté au panier !`);
   };
 
   return (
@@ -63,11 +139,10 @@ const ProductDetailPage = () => {
         </Button>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Product Images */}
-          <div className="space-y-4">
+          {/* Product Images */}          <div className="space-y-4">
             <div className="aspect-square overflow-hidden rounded-lg bg-gray-100">
               <img
-                src={product.image}
+                src={product.imageUrl || '/placeholder.svg'}
                 alt={product.name}
                 className="w-full h-full object-cover"
               />
@@ -82,7 +157,7 @@ const ProductDetailPage = () => {
                   {product.category}
                 </span>
                 <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                  {product.producer}
+                  {product.producer.shopName || product.producer.name}
                 </span>
               </div>
               <h1 className="text-3xl font-bold text-gray-900 mb-4">{product.name}</h1>
@@ -154,16 +229,15 @@ const ProductDetailPage = () => {
             </Button>
 
             {/* Producer Info */}
-            <div className="border-t pt-6">
-              <h3 className="text-lg font-semibold mb-2">À propos du producteur</h3>
+            <div className="border-t pt-6">              <h3 className="text-lg font-semibold mb-2">À propos du producteur</h3>
               <div className="flex items-center space-x-4">
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                   <span className="text-green-600 font-semibold">
-                    {product.producer.charAt(0)}
+                    {(product.producer.shopName || product.producer.name).charAt(0)}
                   </span>
                 </div>
                 <div>
-                  <p className="font-medium">{product.producer}</p>
+                  <p className="font-medium">{product.producer.shopName || product.producer.name}</p>
                   <p className="text-gray-600 text-sm">Producteur local certifié</p>
                 </div>
               </div>

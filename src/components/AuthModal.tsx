@@ -27,7 +27,6 @@ const AuthModal = ({ isOpen, onClose, defaultMode = 'login', userType = 'custome
   const navigate = useNavigate();
 
   if (!isOpen) return null;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -37,6 +36,8 @@ const AuthModal = ({ isOpen, onClose, defaultMode = 'login', userType = 'custome
         const user = await login(formData.email, formData.password, currentUserType);
         // Navigate based on the actual user role from the backend, not the UI selection
         navigate(user.role === 'customer' ? '/products' : '/account/provider');
+        onAuthSuccess?.();
+        onClose();
       } else {
         if (formData.password !== formData.confirmPassword) {
           setError('Les mots de passe ne correspondent pas');
@@ -66,9 +67,9 @@ const AuthModal = ({ isOpen, onClose, defaultMode = 'login', userType = 'custome
         const user = await register(formData.email, formData.password, currentUserType, profileData);
         // For registration, we can trust currentUserType since we're creating the account with that role
         navigate(user.role === 'customer' ? '/products' : '/account/provider');
+        onAuthSuccess?.();
+        onClose();
       }
-      onAuthSuccess?.();
-      onClose();
     } catch (err: any) {
       // Provide specific error messages for role mismatches
       if (err.message === 'Invalid credentials for this account type') {

@@ -9,7 +9,28 @@ import PickupPointSelector from '../components/PickupPointSelector';
 import ProducerCard from '../components/ProducerCard';
 import LocationSelector from '../components/LocationSelector';
 import AuthModal from '../components/AuthModal';
-import { mockProducts, mockProducers, categories, producers, Product } from '../data/mockData';
+import { api } from '@/lib/api';
+
+interface Product {
+  id: number;
+  name: string;
+  price: number;
+  unit: string;
+  producer: string;
+  image: string;
+  stock: number;
+  category: string;
+  description?: string;
+}
+
+interface Producer {
+  id: number;
+  name: string;
+  description: string;
+  specialties: string[];
+  image: string;
+  location: string;
+}
 
 interface CartItem extends Product {
   quantity: number;
@@ -25,8 +46,69 @@ const Index = () => {
   const [currentView, setCurrentView] = useState<'home' | 'products' | 'producers'>('home');
   const [userLocation, setUserLocation] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // State for API data
+  const [products, setProducts] = useState<Product[]>([]);
+  const [producers, setProducers] = useState<Producer[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredProducts = mockProducts.filter(product => {
+  // Load data on component mount
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Load products and producers in parallel
+      const [productsData, producersData] = await Promise.all([
+        api.products.getProducts(),
+        api.producers.getPublicProducers()
+      ]);
+      
+      // Transform products data to match our interface
+      const transformedProducts: Product[] = productsData.map((product: any) => ({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        unit: product.unit,
+        producer: product.producer?.name || 'Unknown',
+        image: product.imageUrl || '/placeholder.svg',
+        stock: product.stock,
+        category: product.category,
+        description: product.description
+      }));
+      
+      // Transform producers data to match our interface
+      const transformedProducers: Producer[] = producersData.map((producer: any) => ({
+        id: producer.id,
+        name: producer.shopName || producer.name,
+        description: producer.description || '',
+        specialties: producer.certifications || [],
+        image: producer.imageUrl || '/placeholder.svg',
+        location: producer.address || producer.location || ''
+      }));
+      
+      setProducts(transformedProducts);
+      setProducers(transformedProducers);
+      
+      // Extract unique categories
+      const uniqueCategories = Array.from(new Set(transformedProducts.map(product => product.category)));
+      setCategories(uniqueCategories);
+      
+    } catch (err) {
+      console.error('Error loading data:', err);
+      setError('Erreur lors du chargement des données');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredProducts = products.filter(product => {
     const categoryMatch = selectedCategory === "" || product.category === selectedCategory;
     const producerMatch = selectedProducer === "" || product.producer === selectedProducer;
     const searchMatch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -69,24 +151,54 @@ const Index = () => {
     setUserLocation(location);
     console.log('User location updated:', location);
   };
-
   const handleCheckout = () => {
     setIsCartOpen(false);
     setIsPickupSelectorOpen(true);
   };
 
-  const handlePickupPointSelect = (point: any) => {
-    console.log('Point relais sélectionné:', point);
-    setCartItems([]);
-    alert('Commande confirmée ! Vous recevrez un email de confirmation.');
+  const handlePickupPointSelect = async (point: any) => {
+    try {
+      // Group cart items by producer
+      const itemsByProducer = cartItems.reduce((acc, item) => {
+        // For now, we'll assume all items are from the same producer
+        // In a real implementation, you'd need to group by actual producer ID
+        const producerId = '1'; // This would come from the product data
+        if (!acc[producerId]) {
+          acc[producerId] = [];
+        }
+        acc[producerId].push({
+          productId: item.id.toString(),
+          quantity: item.quantity
+        });
+        return acc;
+      }, {} as Record<string, Array<{productId: string, quantity: number}>>);
+
+      // Create orders for each producer
+      const orderPromises = Object.entries(itemsByProducer).map(([producerId, items]) =>
+        api.orders.create({
+          producerId,
+          items,
+          pickupPoint: point.name,
+          notes: `Point de retrait: ${point.address}`
+        })
+      );
+
+      await Promise.all(orderPromises);
+      
+      setCartItems([]);
+      setIsPickupSelectorOpen(false);
+      alert('Commande confirmée ! Vous recevrez un email de confirmation.');
+    } catch (error) {
+      console.error('Error creating order:', error);
+      alert('Erreur lors de la création de la commande. Veuillez réessayer.');
+    }
   };
 
   const handleProducerSignup = () => {
     setIsAuthModalOpen(true);
   };
-
   const handleProducerClick = (producerId: number) => {
-    setSelectedProducer(mockProducers.find(p => p.id === producerId)?.name || "");
+    setSelectedProducer(producers.find(p => p.id === producerId)?.name || "");
     setCurrentView('products');
   };
 
@@ -144,20 +256,35 @@ const Index = () => {
                 <h3 className="font-semibold text-lg mb-2">Points Relais</h3>
                 <p className="text-gray-600">Trouvez le point de retrait le plus proche</p>
               </button>
-            </div>
-
-            {/* Featured Products */}
+            </div>            {/* Featured Products */}
             <section className="mb-12">
               <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">Produits du moment</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {mockProducts.slice(0, 4).map(product => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onAddToCart={addToCart}
-                  />
-                ))}
-              </div>
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
+                  <p className="mt-4 text-gray-600">Chargement des produits...</p>
+                </div>
+              ) : error ? (
+                <div className="text-center py-8">
+                  <p className="text-red-600">{error}</p>
+                  <button
+                    onClick={loadData}
+                    className="mt-4 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+                  >
+                    Réessayer
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {products.slice(0, 4).map(product => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      onAddToCart={addToCart}
+                    />
+                  ))}
+                </div>
+              )}
               <div className="text-center mt-8">
                 <button
                   onClick={() => setCurrentView('products')}
@@ -183,11 +310,10 @@ const Index = () => {
             </button>
           </div>
           
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            <div>
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">            <div>
               <ProductFilters
                 categories={categories}
-                producers={producers}
+                producers={producers.map(p => p.name)}
                 selectedCategory={selectedCategory}
                 selectedProducer={selectedProducer}
                 onCategoryChange={setSelectedCategory}
@@ -227,9 +353,8 @@ const Index = () => {
               ← Retour à l'accueil
             </button>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {mockProducers.map(producer => (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {producers.map(producer => (
               <ProducerCard 
                 key={producer.id} 
                 producer={producer} 

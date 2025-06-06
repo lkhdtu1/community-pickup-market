@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
 import { Store, MapPin, Phone, Mail, ImagePlus } from 'lucide-react';
+import { producersAPI } from '../lib/api';
 
 interface ShopFormData {
   shopName: string;
@@ -19,6 +20,7 @@ interface ShopFormData {
 const CreateShopPage = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   const handleSearch = (query: string) => {
     navigate(`/products?search=${query}`);
@@ -37,14 +39,17 @@ const CreateShopPage = () => {
 
   const onSubmit = async (data: ShopFormData) => {
     setIsSubmitting(true);
+    setError(null);
     
-    // Simulate shop creation
-    setTimeout(() => {
-      console.log('Shop created:', data);
-      setIsSubmitting(false);
+    try {
+      await producersAPI.create(data);
       // Navigate to provider account page after creation
       navigate('/account/provider');
-    }, 1500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la création');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -65,10 +70,14 @@ const CreateShopPage = () => {
               <h1 className="text-3xl font-bold text-gray-900">Créer votre boutique</h1>
               <p className="text-gray-600">Configurez votre espace producteur et commencez à vendre vos produits</p>
             </div>
-          </div>
-
-          <Form {...form}>
+          </div>          <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                  {error}
+                </div>
+              )}
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}

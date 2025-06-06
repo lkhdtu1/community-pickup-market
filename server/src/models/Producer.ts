@@ -1,5 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToOne, OneToMany, JoinColumn } from 'typeorm';
 import { User } from './User';
+import { Order } from './Order';
 
 @Entity('producers')
 export class Producer {
@@ -27,9 +28,11 @@ export class Producer {
     hours: string;
     instructions: string;
   };
-
   @Column({ default: true })
   isActive: boolean;
+
+  @OneToMany(() => Order, order => order.producer)
+  orders: Order[];
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;

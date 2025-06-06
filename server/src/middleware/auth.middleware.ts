@@ -26,7 +26,7 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
 
     const decoded = jwt.verify(
       token,
-      process.env.JWT_SECRET || 'your-secret-key'
+      process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production'
     ) as JwtPayload;
 
     req.user = decoded;

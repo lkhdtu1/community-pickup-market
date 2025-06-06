@@ -1,21 +1,40 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Package, MapPin, Settings, LogOut, Edit2, CreditCard, Bell, Shield, Gift, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { logout } from '@/lib/auth';
+import { api } from '@/lib/api';
+
+interface Order {
+  id: number;
+  total: number;
+  status: string;
+  createdAt: string;
+  items: Array<{
+    productName: string;
+    quantity: number;
+    price: number;
+  }>;
+}
+
+interface CustomerProfile {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  address?: string;
+  dateOfBirth?: string;
+}
 
 const CustomerAccount = () => {
   const [activeTab, setActiveTab] = useState('profil');
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
-  const [profileData, setProfileData] = useState({
-    prenom: 'Marie',
-    nom: 'Dupont',
-    email: 'marie.dupont@email.com',
-    telephone: '06 12 34 56 78',
-    adresse: '123 rue de la Paix, 75001 Paris',
-    dateNaissance: '1985-03-15'
-  });
+  const [profileData, setProfileData] = useState<CustomerProfile | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [preferences, setPreferences] = useState({
     notifications: true,
@@ -24,45 +43,78 @@ const CustomerAccount = () => {
     emailPromotions: true
   });
 
-  const historiqueCommandes = [
-    {
-      id: 1,
-      date: '2024-01-15',
-      total: 45.80,
-      statut: 'Récupérée',
-      articles: ['Tomates bio x2', 'Pain artisanal', 'Miel de lavande'],
-      pointRelais: 'Marché de Belleville',
-      note: 5
-    },
-    {
-      id: 2,
-      date: '2024-01-08',
-      total: 32.50,
-      statut: 'Prête',
-      articles: ['Fromage de chèvre', 'Salade verte', 'Œufs fermiers'],
-      pointRelais: 'Ferme des Roses',
-      note: null
-    },
-    {
-      id: 3,
-      date: '2024-01-01',
-      total: 68.90,
-      statut: 'Livrée',
-      articles: ['Panier légumes de saison', 'Viande locale', 'Fruits bio'],
-      pointRelais: 'Centre-ville',
-      note: 4
+  useEffect(() => {
+    loadCustomerData();
+  }, []);
+
+  const loadCustomerData = async () => {
+    try {
+      setLoading(true);
+      const [profile, customerOrders] = await Promise.all([
+        api.customers.getProfile(),
+        api.orders.getCustomerOrders()
+      ]);
+      setProfileData(profile);
+      setOrders(customerOrders);
+      setError(null);
+    } catch (err) {
+      console.error('Error loading customer data:', err);
+      setError('Erreur lors du chargement des données');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };  const updateProfile = async (updatedData: Partial<CustomerProfile>) => {
+    try {
+      const updated = await api.customers.updateProfile(updatedData);
+      setProfileData(updated);
+      setIsEditing(false);
+    } catch (err) {
+      console.error('Error updating profile:', err);
+      // TODO: Show error message to user
+    }
+  };
 
-  const cartesFidelite = [
-    { nom: 'Ferme Bio Martin', points: 245, reduction: '5%' },
-    { nom: 'Boulangerie Artisanale', points: 89, reduction: '10€' },
-    { nom: 'Maraîcher Local', points: 156, reduction: '3€' }
-  ];
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Chargement du profil...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const handleSaveProfile = () => {
-    setIsEditing(false);
-    console.log('Profil sauvegardé:', profileData);
+  if (error || !profileData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error || 'Erreur lors du chargement du profil'}</p>
+          <button 
+            onClick={loadCustomerData}
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 mr-4"
+          >
+            Réessayer
+          </button>
+          <button 
+            onClick={() => { logout(); navigate('/'); }}
+            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+          >
+            Se déconnecter
+          </button>
+        </div>
+      </div>
+    );
+  }
+  const handleSaveProfile = async () => {
+    if (!profileData) return;
+    
+    try {
+      await updateProfile(profileData);
+    } catch (err) {
+      console.error('Error saving profile:', err);
+      setError('Erreur lors de la sauvegarde du profil');
+    }
   };
   const handleRateOrder = (orderId: number, rating: number) => {
     console.log(`Commande ${orderId} notée: ${rating}/5`);
@@ -129,18 +181,17 @@ const CustomerAccount = () => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Prénom</label>
                   {isEditing ? (
                     <input
                       type="text"
-                      value={profileData.prenom}
-                      onChange={(e) => setProfileData(prev => ({ ...prev, prenom: e.target.value }))}
+                      value={profileData.firstName}
+                      onChange={(e) => setProfileData(prev => ({ ...prev!, firstName: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     />
                   ) : (
-                    <p className="text-gray-900">{profileData.prenom}</p>
+                    <p className="text-gray-900">{profileData.firstName}</p>
                   )}
                 </div>
 
@@ -149,12 +200,12 @@ const CustomerAccount = () => {
                   {isEditing ? (
                     <input
                       type="text"
-                      value={profileData.nom}
-                      onChange={(e) => setProfileData(prev => ({ ...prev, nom: e.target.value }))}
+                      value={profileData.lastName}
+                      onChange={(e) => setProfileData(prev => ({ ...prev!, lastName: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     />
                   ) : (
-                    <p className="text-gray-900">{profileData.nom}</p>
+                    <p className="text-gray-900">{profileData.lastName}</p>
                   )}
                 </div>
 
@@ -170,47 +221,43 @@ const CustomerAccount = () => {
                   ) : (
                     <p className="text-gray-900">{profileData.email}</p>
                   )}
-                </div>
-
-                <div>
+                </div>                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Téléphone</label>
                   {isEditing ? (
                     <input
                       type="tel"
-                      value={profileData.telephone}
-                      onChange={(e) => setProfileData(prev => ({ ...prev, telephone: e.target.value }))}
+                      value={profileData.phone || ''}
+                      onChange={(e) => setProfileData(prev => ({ ...prev!, phone: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     />
                   ) : (
-                    <p className="text-gray-900">{profileData.telephone}</p>
+                    <p className="text-gray-900">{profileData.phone || 'Non renseigné'}</p>
                   )}
-                </div>
-
-                <div>
+                </div>                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Date de naissance</label>
                   {isEditing ? (
                     <input
                       type="date"
-                      value={profileData.dateNaissance}
-                      onChange={(e) => setProfileData(prev => ({ ...prev, dateNaissance: e.target.value }))}
+                      value={profileData.dateOfBirth || ''}
+                      onChange={(e) => setProfileData(prev => ({ ...prev!, dateOfBirth: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     />
                   ) : (
-                    <p className="text-gray-900">{new Date(profileData.dateNaissance).toLocaleDateString('fr-FR')}</p>
+                    <p className="text-gray-900">
+                      {profileData.dateOfBirth ? new Date(profileData.dateOfBirth).toLocaleDateString('fr-FR') : 'Non renseigné'}
+                    </p>
                   )}
-                </div>
-
-                <div className="md:col-span-2">
+                </div>                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Adresse</label>
                   {isEditing ? (
                     <input
                       type="text"
-                      value={profileData.adresse}
-                      onChange={(e) => setProfileData(prev => ({ ...prev, adresse: e.target.value }))}
+                      value={profileData.address || ''}
+                      onChange={(e) => setProfileData(prev => ({ ...prev!, address: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     />
                   ) : (
-                    <p className="text-gray-900">{profileData.adresse}</p>
+                    <p className="text-gray-900">{profileData.address || 'Non renseignée'}</p>
                   )}
                 </div>
               </div>
@@ -226,54 +273,53 @@ const CustomerAccount = () => {
                 </div>
               )}
             </div>
-          )}
-
-          {activeTab === 'commandes' && (
+          )}          {activeTab === 'commandes' && (
             <div>
               <h2 className="text-xl font-semibold mb-6">Historique des commandes</h2>
               <div className="space-y-4">
-                {historiqueCommandes.map((commande) => (
-                  <div key={commande.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h3 className="font-semibold">Commande #{commande.id}</h3>
-                        <p className="text-sm text-gray-600">{new Date(commande.date).toLocaleDateString('fr-FR')}</p>
+                {orders.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">Aucune commande trouvée.</p>
+                  </div>
+                ) : (
+                  orders.map((order) => (
+                    <div key={order.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="font-semibold">Commande #{order.id}</h3>
+                          <p className="text-sm text-gray-600">{new Date(order.createdAt).toLocaleDateString('fr-FR')}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold">{order.total.toFixed(2)} €</p>
+                          <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                            order.status === 'completed'
+                              ? 'bg-green-100 text-green-800' 
+                              : order.status === 'ready'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {order.status === 'pending' ? 'En attente' :
+                             order.status === 'confirmed' ? 'Confirmée' :
+                             order.status === 'ready' ? 'Prête' :
+                             order.status === 'completed' ? 'Récupérée' :
+                             order.status === 'cancelled' ? 'Annulée' : order.status}
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold">{commande.total.toFixed(2)} €</p>
-                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                          commande.statut === 'Récupérée' || commande.statut === 'Livrée'
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {commande.statut}
-                        </span>
+                      <div className="mb-3">
+                        <p className="text-sm text-gray-600">
+                          Articles : {order.items.map(item => `${item.quantity}x ${item.productName}`).join(', ')}
+                        </p>
                       </div>
-                    </div>
-                    <div className="mb-3">
-                      <p className="text-sm text-gray-600">Articles : {commande.articles.join(', ')}</p>
-                      <p className="text-sm text-gray-600">Point de retrait : {commande.pointRelais}</p>
-                    </div>
-                    {commande.statut === 'Livrée' && (
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm text-gray-600">Votre note :</span>
-                        {commande.note ? (
-                          <div className="flex items-center space-x-1">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <Star
-                                key={star}
-                                size={16}
-                                className={star <= commande.note! ? 'text-yellow-400 fill-current' : 'text-gray-300'}
-                              />
-                            ))}
-                            <span className="text-sm text-gray-600">({commande.note}/5)</span>
-                          </div>
-                        ) : (
+                      {order.status === 'completed' && (
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm text-gray-600">Votre note :</span>
                           <div className="flex items-center space-x-1">
                             {[1, 2, 3, 4, 5].map((star) => (
                               <button
                                 key={star}
-                                onClick={() => handleRateOrder(commande.id, star)}
+                                onClick={() => handleRateOrder(order.id, star)}
                                 className="text-gray-300 hover:text-yellow-400"
                               >
                                 <Star size={16} />
@@ -281,11 +327,11 @@ const CustomerAccount = () => {
                             ))}
                             <span className="text-sm text-gray-500">Cliquez pour noter</span>
                           </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
@@ -331,37 +377,13 @@ const CustomerAccount = () => {
                 </div>
               </div>
             </div>
-          )}
-
-          {activeTab === 'fidelite' && (
+          )}          {activeTab === 'fidelite' && (
             <div>
               <h2 className="text-xl font-semibold mb-6">Programme de fidélité</h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {cartesFidelite.map((carte, index) => (
-                  <div key={index} className="border border-gray-200 rounded-lg p-4">
-                    <h3 className="font-semibold mb-2">{carte.nom}</h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Points accumulés</span>
-                        <span className="font-medium">{carte.points}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Réduction disponible</span>
-                        <span className="font-medium text-green-600">{carte.reduction}</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-green-600 h-2 rounded-full" 
-                          style={{ width: `${Math.min((carte.points / 300) * 100, 100)}%` }}
-                        ></div>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        {300 - carte.points > 0 ? `${300 - carte.points} points pour la prochaine récompense` : 'Récompense disponible !'}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+              <div className="text-center py-12">
+                <Gift className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 mb-6">Le programme de fidélité sera bientôt disponible !</p>
               </div>
 
               <div className="mt-8 bg-gray-50 rounded-lg p-6">

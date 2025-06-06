@@ -108,46 +108,7 @@ export const updateCustomerProfile = async (req: Request, res: Response): Promis
   }
 };
 
-// Get customer orders
-export const getCustomerOrders = async (_req: Request, res: Response): Promise<void> => {
-  try {
-    // For now, return mock data since Order entity doesn't exist yet
-    const mockOrders = [
-      {
-        id: 1,
-        date: '2024-01-15',
-        total: 45.80,
-        status: 'completed',
-        items: ['Tomates bio x2', 'Pain artisanal', 'Miel de lavande'],
-        pickupPoint: 'Marché de Belleville',
-        rating: 5
-      },
-      {
-        id: 2,
-        date: '2024-01-08',
-        total: 32.50,
-        status: 'ready',
-        items: ['Fromage de chèvre', 'Salade verte', 'Œufs fermiers'],
-        pickupPoint: 'Ferme des Roses',
-        rating: null
-      },
-      {
-        id: 3,
-        date: '2024-01-01',
-        total: 68.90,
-        status: 'delivered',
-        items: ['Panier légumes de saison', 'Viande locale', 'Fruits bio'],
-        pickupPoint: 'Centre-ville',
-        rating: 4
-      }
-    ];
-
-    res.json(mockOrders);
-  } catch (error) {
-    console.error('Get customer orders error:', error);
-    res.status(500).json({ message: 'Error fetching orders' });
-  }
-};
+// Note: Customer orders are now handled by the order controller
 
 // Get customer preferences
 export const getCustomerPreferences = async (req: Request, res: Response): Promise<void> => {
