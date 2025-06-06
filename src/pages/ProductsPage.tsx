@@ -2,31 +2,20 @@ import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import ProductCard from '../components/ProductCard';
 import ProductFilters from '../components/ProductFilters';
+import { mockProducts } from '../data/mockData';
 import { useLocation } from 'react-router-dom';
-import { api } from '@/lib/api';
-
-interface Product {
-  id: number;
-  name: string;
-  description: string;
-  price: number;
-  unit: string;
-  stock: number;
-  category: string;
-  imageUrl: string;
-  producer: {
-    id: number;
-    name: string;
-  };
-}
+import { productsAPI } from '../lib/api';
+import { useCart } from '../contexts/CartContext';
+import { Product } from '../types/product';
 
 const ProductsPage = () => {
+  const { addToCart, cartItemsCount } = useCart();
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedProducer, setSelectedProducer] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
-  const [producers, setProducers] = useState<{ id: number; name: string }[]>([]);
+  const [producers, setProducers] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -50,16 +39,36 @@ const ProductsPage = () => {
       setSelectedProducer('');
     }
   }, [location.search]);
-
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const data = await api.products.getProducts();
-      setProducts(data);
+      setError(null);
+      const data = await productsAPI.getAll();
+      
+      // Transform API response to match our Product interface
+      const transformedProducts: Product[] = data.map((apiProduct: any) => ({
+        id: apiProduct.id,
+        name: apiProduct.name,
+        description: apiProduct.description || '',
+        price: apiProduct.price,
+        unit: apiProduct.unit,
+        stock: apiProduct.stock,
+        category: apiProduct.category,
+        imageUrl: apiProduct.image || apiProduct.images?.[0] || '/placeholder.svg',
+        images: apiProduct.images || [],        producer: {
+          id: apiProduct.producerId || apiProduct.producer?.id || 'unknown',
+          name: typeof apiProduct.producer === 'string' ? apiProduct.producer : 
+                (apiProduct.producer?.name || apiProduct.producer?.shopName || 'Unknown'),
+          shopName: typeof apiProduct.producer === 'object' ? apiProduct.producer.shopName : undefined
+        },
+        isAvailable: apiProduct.isAvailable
+      }));
+      
+      setProducts(transformedProducts);
       
       // Extract unique categories and producers
-      const uniqueCategories = Array.from(new Set(data.map(product => product.category)));
-      const uniqueProducers = Array.from(new Set(data.map(product => ({
+      const uniqueCategories = Array.from(new Set(transformedProducts.map(product => product.category))) as string[];
+      const uniqueProducers = Array.from(new Set(transformedProducts.map(product => ({
         id: product.producer.id,
         name: product.producer.name
       })).map(p => JSON.stringify(p)))).map(p => JSON.parse(p));
@@ -70,23 +79,51 @@ const ProductsPage = () => {
     } catch (err) {
       console.error('Error loading products:', err);
       setError('Erreur lors du chargement des produits');
+      
+      // Fallback to transformed mock data
+      const transformedMockProducts: Product[] = mockProducts.map(mockProduct => ({
+        id: mockProduct.id.toString(),
+        name: mockProduct.name,
+        description: mockProduct.description || '',
+        price: mockProduct.price,
+        unit: mockProduct.unit,
+        stock: mockProduct.stock,
+        category: mockProduct.category,
+        imageUrl: mockProduct.image,
+        producer: {
+          id: 'mock-producer',
+          name: mockProduct.producer
+        }
+      }));
+      setProducts(transformedMockProducts);
     } finally {
       setLoading(false);
     }
+  };  const handleAddToCart = (product: Product) => {
+    const cartItem = {
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      unit: product.unit,
+      producer: product.producer.name || product.producer.shopName || 'Unknown',
+      image: product.imageUrl || '/placeholder.svg',
+      category: product.category
+    };
+    addToCart(cartItem);
+    alert(`${product.name} ajouté au panier !`);
   };
   // Filter products based on selected category and producer
   const filteredProducts = products.filter(product => {
     const categoryMatch = selectedCategory === "" || product.category === selectedCategory;
-    const producerMatch = selectedProducer === "" || product.producer.id.toString() === selectedProducer;
+    const producerMatch = selectedProducer === "" || product.producer.id === selectedProducer;
     const searchMatch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         product.description?.toLowerCase().includes(searchQuery.toLowerCase());
     return categoryMatch && producerMatch && searchMatch;
   });
 
-  return (
-    <div className="min-h-screen bg-gray-50">
+  return (    <div className="min-h-screen bg-gray-50">
       <Header 
-        cartItemsCount={0}
+        cartItemsCount={cartItemsCount}
         onCartClick={() => {}}
         onSearch={setSearchQuery}
       />
@@ -128,8 +165,7 @@ const ProductsPage = () => {
                 <div className="mb-4 text-gray-600">
                   {filteredProducts.length} produit{filteredProducts.length > 1 ? 's' : ''} trouvé{filteredProducts.length > 1 ? 's' : ''}
                 </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredProducts.map((product) => (
                     <ProductCard
                       key={product.id}
@@ -139,28 +175,11 @@ const ProductsPage = () => {
                         price: product.price,
                         unit: product.unit,
                         producer: product.producer.name,
-                        image: product.imageUrl,
-                        stock: product.stock,
+                        image: product.imageUrl || '/placeholder.svg',
                         category: product.category,
                         description: product.description
-                      }}                      onAddToCart={(productData) => {
-                        // Transform API product to cart item format
-                        const cartItem = {
-                          id: product.id,
-                          name: product.name,
-                          price: product.price,
-                          unit: product.unit,
-                          producer: product.producer.name,
-                          image: product.imageUrl,
-                          stock: product.stock,
-                          category: product.category,
-                          description: product.description,
-                          quantity: 1
-                        };
-                        // In a real app, this would be managed by a global cart context
-                        console.log('Add to cart:', cartItem);
-                        alert(`${product.name} ajouté au panier !`);
                       }}
+                      onAddToCart={() => handleAddToCart(product)}
                     />
                   ))}
                 </div>

@@ -4,27 +4,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Star, Plus, Minus, ShoppingCart } from 'lucide-react';
 import Header from '../components/Header';
 import { Button } from '../components/ui/button';
-import { api } from '@/lib/api';
-
-interface Product {
-  id: number;
-  name: string;
-  description: string;
-  price: number;
-  unit: string;
-  stock: number;
-  category: string;
-  imageUrl: string;
-  producer: {
-    id: number;
-    name: string;
-    shopName?: string;
-  };
-}
+import { productsAPI } from '../lib/api';
+import { useCart } from '../contexts/CartContext';
+import { Product } from '../types/product';
 
 const ProductDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { addToCart, cartItemsCount } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const [product, setProduct] = useState<Product | null>(null);
@@ -36,13 +23,32 @@ const ProductDetailPage = () => {
       loadProduct(id);
     }
   }, [id]);
-
   const loadProduct = async (productId: string) => {
     try {
       setLoading(true);
       setError(null);
-      const productData = await api.products.getById(productId);
-      setProduct(productData);
+      const apiProduct = await productsAPI.getById(productId);
+      
+      // Transform API response to match our Product interface
+      const transformedProduct: Product = {
+        id: apiProduct.id,
+        name: apiProduct.name,
+        description: apiProduct.description || '',
+        price: apiProduct.price,
+        unit: apiProduct.unit,
+        stock: apiProduct.stock,
+        category: apiProduct.category,
+        imageUrl: apiProduct.image || apiProduct.images?.[0] || '/placeholder.svg',
+        images: apiProduct.images || [],
+        producer: {
+          id: apiProduct.producerId || apiProduct.producer?.id || 'unknown',
+          name: apiProduct.producer || (typeof apiProduct.producer === 'object' ? apiProduct.producer.shopName || apiProduct.producer.name : 'Unknown'),
+          shopName: typeof apiProduct.producer === 'object' ? apiProduct.producer.shopName : undefined
+        },
+        isAvailable: apiProduct.isAvailable
+      };
+      
+      setProduct(transformedProduct);
     } catch (err) {
       console.error('Error loading product:', err);
       setError('Erreur lors du chargement du produit');
@@ -100,8 +106,9 @@ const ProductDetailPage = () => {
 
   const handleQuantityChange = (delta: number) => {
     setQuantity(Math.max(1, quantity + delta));
-  };
-  const handleAddToCart = () => {
+  };  const handleAddToCart = () => {
+    if (!product) return;
+    
     const cartItem = {
       id: product.id,
       name: product.name,
@@ -109,21 +116,16 @@ const ProductDetailPage = () => {
       unit: product.unit,
       producer: product.producer?.shopName || product.producer?.name || 'Unknown',
       image: product.imageUrl || '/placeholder.svg',
-      stock: product.stock,
-      category: product.category,
-      description: product.description,
-      quantity: quantity
+      category: product.category
     };
     
-    // In a real app, this would be managed by a global cart context
-    console.log(`Added ${quantity} x ${product.name} to cart`, cartItem);
+    addToCart(cartItem, quantity);
     alert(`${quantity} x ${product.name} ajouté au panier !`);
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50">
+  return (    <div className="min-h-screen bg-gray-50">
       <Header 
-        cartItemsCount={0}
+        cartItemsCount={cartItemsCount}
         onCartClick={() => {}}
         onSearch={() => {}}
       />

@@ -32,11 +32,10 @@ const ProducerAnalytics = () => {
   useEffect(() => {
     loadAnalytics();
   }, []);
-
   const loadAnalytics = async () => {
     try {
       setLoading(true);
-      const data = await api.orders.getOrderStatistics();
+      const data = await api.orders.getStats();
       setAnalytics(data);
       setError(null);
     } catch (err) {

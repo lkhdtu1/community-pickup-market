@@ -1,23 +1,14 @@
 
 import React from 'react';
 import { ShoppingCart, X, Plus, Minus } from 'lucide-react';
-
-interface CartItem {
-  id: number;
-  name: string;
-  price: number;
-  unit: string;
-  producer: string;
-  quantity: number;
-  image: string;
-}
+import { CartItem } from '../utils/cartUtils';
 
 interface CartProps {
   isOpen: boolean;
   items: CartItem[];
   onClose: () => void;
-  onUpdateQuantity: (id: number, quantity: number) => void;
-  onRemoveItem: (id: number) => void;
+  onUpdateQuantity: (id: string, quantity: number) => void;
+  onRemoveItem: (id: string) => void;
   onCheckout: () => void;
 }
 

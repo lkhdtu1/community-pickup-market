@@ -1,15 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Package, BarChart3, Settings, LogOut, Store, ShoppingCart, TrendingUp } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { logout } from '@/lib/auth';
+import { api } from '@/lib/api';
 import ProductManagement from './ProductManagement';
 import OrderManagement from './OrderManagement';
 import ProducerAnalytics from './ProducerAnalytics';
 import ProducerProfile from './ProducerProfile';
 
-const ProviderAccount = () => {  const [activeTab, setActiveTab] = useState('dashboard');
+const ProviderAccount = () => {
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [hasShop, setHasShop] = useState(true); // Changé à true pour montrer l'interface complète
+  const [analytics, setAnalytics] = useState(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (activeTab === 'dashboard') {
+      loadDashboardData();
+    }
+  }, [activeTab]);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const data = await api.orders.getStats();
+      setAnalytics(data);
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -107,32 +129,52 @@ const ProviderAccount = () => {  const [activeTab, setActiveTab] = useState('das
           </nav>
         </div>
 
-        <div className="p-6">
-          {activeTab === 'dashboard' && (
+        <div className="p-6">          {activeTab === 'dashboard' && (
             <div>
               <h2 className="text-xl font-semibold mb-6">Tableau de bord</h2>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <div className="bg-green-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-semibold text-green-800">Ventes du mois</h3>
-                  <p className="text-3xl font-bold text-green-600 mt-2">1,247 €</p>
-                  <p className="text-sm text-green-600 mt-1">+12% par rapport au mois dernier</p>
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+                  <p className="mt-4 text-gray-600">Chargement des données...</p>
                 </div>
-                <div className="bg-blue-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-semibold text-blue-800">Commandes actives</h3>
-                  <p className="text-3xl font-bold text-blue-600 mt-2">23</p>
-                  <p className="text-sm text-blue-600 mt-1">En attente de retrait</p>
-                </div>
-                <div className="bg-purple-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-semibold text-purple-800">Produits actifs</h3>
-                  <p className="text-3xl font-bold text-purple-600 mt-2">12</p>
-                  <p className="text-sm text-purple-600 mt-1">Produits en ligne</p>
-                </div>
-                <div className="bg-orange-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-semibold text-orange-800">Clients fidèles</h3>
-                  <p className="text-3xl font-bold text-orange-600 mt-2">18</p>
-                  <p className="text-sm text-orange-600 mt-1">Clients réguliers</p>
-                </div>
-              </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div className="bg-green-50 p-6 rounded-lg">
+                      <h3 className="text-lg font-semibold text-green-800">Ventes du mois</h3>
+                      <p className="text-3xl font-bold text-green-600 mt-2">
+                        {analytics?.totalRevenue?.toFixed(2) || '0.00'} €
+                      </p>
+                      <p className="text-sm text-green-600 mt-1">
+                        {analytics?.revenueGrowth >= 0 ? '+' : ''}{analytics?.revenueGrowth?.toFixed(1) || '0'}% par rapport au mois dernier
+                      </p>
+                    </div>
+                    <div className="bg-blue-50 p-6 rounded-lg">
+                      <h3 className="text-lg font-semibold text-blue-800">Commandes totales</h3>
+                      <p className="text-3xl font-bold text-blue-600 mt-2">
+                        {analytics?.totalOrders || 0}
+                      </p>
+                      <p className="text-sm text-blue-600 mt-1">
+                        {analytics?.ordersGrowth >= 0 ? '+' : ''}{analytics?.ordersGrowth?.toFixed(1) || '0'}% vs mois dernier
+                      </p>
+                    </div>
+                    <div className="bg-purple-50 p-6 rounded-lg">
+                      <h3 className="text-lg font-semibold text-purple-800">Panier moyen</h3>
+                      <p className="text-3xl font-bold text-purple-600 mt-2">
+                        {analytics?.averageOrderValue?.toFixed(2) || '0.00'} €
+                      </p>
+                      <p className="text-sm text-purple-600 mt-1">Par commande</p>
+                    </div>
+                    <div className="bg-orange-50 p-6 rounded-lg">
+                      <h3 className="text-lg font-semibold text-orange-800">Clients actifs</h3>
+                      <p className="text-3xl font-bold text-orange-600 mt-2">
+                        {analytics?.customerCount || 0}
+                      </p>
+                      <p className="text-sm text-orange-600 mt-1">Clients uniques</p>
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Aperçu des commandes récentes */}
               <div className="bg-gray-50 p-6 rounded-lg mb-6">

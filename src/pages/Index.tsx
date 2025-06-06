@@ -10,30 +10,14 @@ import ProducerCard from '../components/ProducerCard';
 import LocationSelector from '../components/LocationSelector';
 import AuthModal from '../components/AuthModal';
 import { api } from '@/lib/api';
+import { loadCartFromStorage, saveCartToStorage, addToCart as addToCartUtil, updateCartItemQuantity, removeFromCart as removeFromCartUtil } from '../utils/cartUtils';
+import type { CartItem as StoredCartItem } from '../utils/cartUtils';
+import { Product, Producer } from '../types/product';
 
-interface Product {
-  id: number;
-  name: string;
-  price: number;
-  unit: string;
-  producer: string;
-  image: string;
-  stock: number;
-  category: string;
+// Local CartItem interface for the Index page that includes extra properties for display
+interface CartItem extends StoredCartItem {
   description?: string;
-}
-
-interface Producer {
-  id: number;
-  name: string;
-  description: string;
-  specialties: string[];
-  image: string;
-  location: string;
-}
-
-interface CartItem extends Product {
-  quantity: number;
+  stock?: number;
 }
 
 const Index = () => {
@@ -53,7 +37,16 @@ const Index = () => {
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Load cart from storage on component mount
+  useEffect(() => {
+    const savedCart = loadCartFromStorage();
+    setCartItems(savedCart);
+  }, []);
 
+  // Save cart to storage whenever cart changes
+  useEffect(() => {
+    saveCartToStorage(cartItems);
+  }, [cartItems]);
   // Load data on component mount
   useEffect(() => {
     loadData();
@@ -69,18 +62,23 @@ const Index = () => {
         api.products.getProducts(),
         api.producers.getPublicProducers()
       ]);
-      
-      // Transform products data to match our interface
+        // Transform products data to match our interface
       const transformedProducts: Product[] = productsData.map((product: any) => ({
         id: product.id,
         name: product.name,
+        description: product.description || '',
         price: product.price,
         unit: product.unit,
-        producer: product.producer?.name || 'Unknown',
-        image: product.imageUrl || '/placeholder.svg',
         stock: product.stock,
         category: product.category,
-        description: product.description
+        imageUrl: product.image || product.images?.[0] || '/placeholder.svg',
+        images: product.images || [],        producer: {
+          id: product.producerId || product.producer?.id || 'unknown',
+          name: typeof product.producer === 'string' ? product.producer : 
+                (product.producer?.name || product.producer?.shopName || 'Unknown'),
+          shopName: typeof product.producer === 'object' ? product.producer.shopName : undefined
+        },
+        isAvailable: product.isAvailable
       }));
       
       // Transform producers data to match our interface
@@ -107,15 +105,13 @@ const Index = () => {
       setLoading(false);
     }
   };
-
   const filteredProducts = products.filter(product => {
     const categoryMatch = selectedCategory === "" || product.category === selectedCategory;
-    const producerMatch = selectedProducer === "" || product.producer === selectedProducer;
+    const producerMatch = selectedProducer === "" || product.producer.name === selectedProducer;
     const searchMatch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         product.description?.toLowerCase().includes(searchQuery.toLowerCase());
     return categoryMatch && producerMatch && searchMatch;
   });
-
   const addToCart = (product: Product) => {
     setCartItems(prevItems => {
       const existingItem = prevItems.find(item => item.id === product.id);
@@ -125,13 +121,25 @@ const Index = () => {
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
-      } else {
-        return [...prevItems, { ...product, quantity: 1 }];
+      } else {        // Convert Product to CartItem format
+        const cartItem: CartItem = {
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          unit: product.unit,
+          image: product.imageUrl, // Map imageUrl to image for CartItem
+          producer: product.producer.name,
+          category: product.category,
+          quantity: 1,
+          description: product.description,
+          stock: product.stock
+        };
+        return [...prevItems, cartItem];
       }
     });
   };
 
-  const updateCartQuantity = (id: number, quantity: number) => {
+  const updateCartQuantity = (id: string, quantity: number) => {
     if (quantity === 0) {
       removeFromCart(id);
     } else {
@@ -143,7 +151,7 @@ const Index = () => {
     }
   };
 
-  const removeFromCart = (id: number) => {
+  const removeFromCart = (id: string) => {
     setCartItems(prevItems => prevItems.filter(item => item.id !== id));
   };
 
@@ -196,8 +204,7 @@ const Index = () => {
 
   const handleProducerSignup = () => {
     setIsAuthModalOpen(true);
-  };
-  const handleProducerClick = (producerId: number) => {
+  };  const handleProducerClick = (producerId: string) => {
     setSelectedProducer(producers.find(p => p.id === producerId)?.name || "");
     setCurrentView('products');
   };

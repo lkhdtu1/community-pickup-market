@@ -1,17 +1,9 @@
 import React from 'react';
-
-interface Producer {
-  id: number;
-  name: string;
-  description: string;
-  specialties: string[];
-  image: string;
-  location: string;
-}
+import { Producer } from '../types/product';
 
 interface ProducerCardProps {
   producer: Producer;
-  onClick: (producerId: number) => void;
+  onClick: (producerId: string) => void;
 }
 
 const ProducerCard = ({ producer, onClick }: ProducerCardProps) => {

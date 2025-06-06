@@ -361,20 +361,130 @@ export const getOrderStats = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    // Get all orders for this producer with relations
     const orders = await orderRepository.find({
-      where: { producer: { id: producer.id } }
+      where: { producer: { id: producer.id } },
+      relations: ['items', 'customer']
     });
 
+    // Calculate basic stats
+    const totalOrders = orders.length;
+    const completedOrders = orders.filter(o => o.status === OrderStatus.PICKED_UP);
+    const totalRevenue = completedOrders.reduce((sum, order) => sum + parseFloat(order.total.toString()), 0);
+    const averageOrderValue = completedOrders.length > 0 ? totalRevenue / completedOrders.length : 0;
+
+    // Calculate unique customers
+    const uniqueCustomers = new Set(orders.map(o => o.customer?.id).filter(id => id)).size;
+
+    // Calculate previous month stats for growth comparison
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth();
+    const currentYear = currentDate.getFullYear();
+    const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+    const currentMonthOrders = orders.filter(o => {
+      const orderDate = new Date(o.createdAt);
+      return orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear;
+    });
+
+    const previousMonthOrders = orders.filter(o => {
+      const orderDate = new Date(o.createdAt);
+      return orderDate.getMonth() === previousMonth && orderDate.getFullYear() === previousYear;
+    });
+
+    const currentMonthRevenue = currentMonthOrders
+      .filter(o => o.status === OrderStatus.PICKED_UP)
+      .reduce((sum, order) => sum + parseFloat(order.total.toString()), 0);
+
+    const previousMonthRevenue = previousMonthOrders
+      .filter(o => o.status === OrderStatus.PICKED_UP)
+      .reduce((sum, order) => sum + parseFloat(order.total.toString()), 0);
+
+    const revenueGrowth = previousMonthRevenue > 0 
+      ? ((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 100 
+      : 0;
+
+    const ordersGrowth = previousMonthOrders.length > 0 
+      ? ((currentMonthOrders.length - previousMonthOrders.length) / previousMonthOrders.length) * 100 
+      : 0;
+
+    // Generate monthly data for charts (last 6 months)
+    const monthlyData = [];
+    for (let i = 5; i >= 0; i--) {
+      const targetDate = new Date(currentYear, currentMonth - i, 1);
+      const month = targetDate.getMonth();
+      const year = targetDate.getFullYear();
+      
+      const monthOrders = orders.filter(o => {
+        const orderDate = new Date(o.createdAt);
+        return orderDate.getMonth() === month && orderDate.getFullYear() === year;
+      });
+
+      const monthRevenue = monthOrders
+        .filter(o => o.status === OrderStatus.PICKED_UP)
+        .reduce((sum, order) => sum + parseFloat(order.total.toString()), 0);
+
+      monthlyData.push({
+        month: targetDate.toLocaleDateString('fr-FR', { month: 'short' }),
+        revenue: Math.round(monthRevenue * 100) / 100,
+        orders: monthOrders.length
+      });
+    }    // Calculate top products from actual order items
+    const productStats = new Map();
+    
+    orders.forEach(order => {
+      if (order.items && order.status === OrderStatus.PICKED_UP) {
+        order.items.forEach(item => {
+          const productName = item.productName;
+          const quantity = item.quantity;
+          const revenue = parseFloat(item.subtotal.toString());
+          
+          if (productStats.has(productName)) {
+            const existing = productStats.get(productName);
+            productStats.set(productName, {
+              productName,
+              totalSold: existing.totalSold + quantity,
+              revenue: existing.revenue + revenue
+            });
+          } else {
+            productStats.set(productName, {
+              productName,
+              totalSold: quantity,
+              revenue: revenue
+            });
+          }
+        });
+      }
+    });
+
+    // Convert to array and sort by revenue, take top 5
+    const topProducts = Array.from(productStats.values())
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5)
+      .map(product => ({
+        ...product,
+        revenue: Math.round(product.revenue * 100) / 100
+      }));
+
     const stats = {
-      total: orders.length,
+      // Basic counts for existing functionality
+      total: totalOrders,
       pending: orders.filter(o => o.status === OrderStatus.PENDING).length,
       prepared: orders.filter(o => o.status === OrderStatus.PREPARED).length,
       ready: orders.filter(o => o.status === OrderStatus.READY).length,
       pickedUp: orders.filter(o => o.status === OrderStatus.PICKED_UP).length,
       cancelled: orders.filter(o => o.status === OrderStatus.CANCELLED).length,
-      totalRevenue: orders
-        .filter(o => o.status === OrderStatus.PICKED_UP)
-        .reduce((sum, order) => sum + parseFloat(order.total.toString()), 0)
+      
+      // Enhanced analytics data for frontend
+      totalRevenue: Math.round(totalRevenue * 100) / 100,
+      totalOrders: totalOrders,
+      averageOrderValue: Math.round(averageOrderValue * 100) / 100,
+      customerCount: uniqueCustomers,
+      revenueGrowth: Math.round(revenueGrowth * 100) / 100,
+      ordersGrowth: Math.round(ordersGrowth * 100) / 100,
+      monthlyData: monthlyData,
+      topProducts: topProducts
     };
 
     res.json(stats);

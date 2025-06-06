@@ -3,17 +3,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShoppingCart } from 'lucide-react';
 import { Button } from './ui/button';
-
-interface Product {
-  id: number;
-  name: string;
-  price: number;
-  unit: string;
-  image: string;
-  category: string;
-  producer: string;
-  description?: string;
-}
+import { Product } from '../types/product';
 
 interface ProductCardProps {
   product: Product;
@@ -37,9 +27,8 @@ const ProductCard = ({ product, onAddToCart }: ProductCardProps) => {
       className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer group"
       onClick={handleCardClick}
     >
-      <div className="aspect-square overflow-hidden bg-gray-100">
-        <img
-          src={product.image}
+      <div className="aspect-square overflow-hidden bg-gray-100">        <img
+          src={product.imageUrl}
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
         />
@@ -49,7 +38,7 @@ const ProductCard = ({ product, onAddToCart }: ProductCardProps) => {
           <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
             {product.category}
           </span>
-          <span className="text-xs text-gray-500">{product.producer}</span>
+          <span className="text-xs text-gray-500">{product.producer.name}</span>
         </div>
         <h3 className="font-semibold text-lg mb-2 group-hover:text-green-600 transition-colors">
           {product.name}
