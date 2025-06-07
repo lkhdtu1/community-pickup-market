@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 
 interface Producer {
-  id: number;
+  id: string;
   name: string;
   description: string;
   specialties: string[];
@@ -23,16 +23,27 @@ const ProducersPage = () => {
   useEffect(() => {
     loadProducers();
   }, []);
-
   const loadProducers = async () => {
     try {
       setLoading(true);
-      const data = await api.producers.getPublicProducers();
-      setProducers(data);
       setError(null);
+      
+      const data = await api.producers.getPublicProducers();
+        // Transform the data to match the expected Producer interface
+      const transformedProducers: Producer[] = data.map((producer: any) => ({
+        id: producer.id.toString(), // Convert to string to match interface
+        name: producer.shops?.[0]?.name || producer.name || 'Producteur',
+        description: producer.shops?.[0]?.description || 'Producteur local',
+        specialties: producer.shops?.[0]?.specialties || [],
+        image: producer.shops?.[0]?.images?.[0] || '/placeholder.svg',
+        location: producer.shops?.[0]?.address || 'Non spécifié'
+      }));
+      
+      setProducers(transformedProducers);
     } catch (err) {
       console.error('Error loading producers:', err);
-      setError('Erreur lors du chargement des producteurs');
+      setError('Erreur lors du chargement des producteurs. Veuillez réessayer.');
+      setProducers([]); // Set empty array on error
     } finally {
       setLoading(false);
     }

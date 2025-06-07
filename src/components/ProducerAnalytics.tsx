@@ -32,44 +32,78 @@ const ProducerAnalytics = () => {
   useEffect(() => {
     loadAnalytics();
   }, []);
-  
-  const loadAnalytics = async () => {
+    const loadAnalytics = async () => {
     try {
       setLoading(true);
-      // Since the backend doesn't have stats endpoint yet, use mock data for now
-      // TODO: Replace with real API call once backend is implemented
-      const mockData: AnalyticsData = {
-        totalRevenue: 1247.50,
-        totalOrders: 23,
-        averageOrderValue: 54.22,
-        customerCount: 18,
-        revenueGrowth: 12.5,
-        ordersGrowth: 5.2,
-        monthlyData: [
-          { month: 'Jan', revenue: 1200, orders: 24 },
-          { month: 'Fév', revenue: 1400, orders: 28 },
-          { month: 'Mar', revenue: 1100, orders: 22 },
-          { month: 'Avr', revenue: 1600, orders: 32 },
-          { month: 'Mai', revenue: 1800, orders: 36 },
-          { month: 'Juin', revenue: 1247, orders: 23 }
-        ],
-        topProducts: [
-          { productName: 'Tomates bio', totalSold: 45, revenue: 450 },
-          { productName: 'Miel de lavande', totalSold: 12, revenue: 320 },
-          { productName: 'Courgettes', totalSold: 30, revenue: 240 },
-          { productName: 'Salade', totalSold: 25, revenue: 180 },
-          { productName: 'Radis', totalSold: 15, revenue: 57 }
-        ]
+      
+      // Load real analytics data from backend APIs
+      const [statsResponse, ordersResponse] = await Promise.all([
+        api.producers.getStats(),
+        api.orders.getProducerOrders()
+      ]);
+      
+      // Generate monthly data from orders (simplified approach)
+      const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+      const monthlyData = monthNames.map((month, index) => {
+        const monthOrders = ordersResponse.filter((order: any) => {
+          const orderDate = new Date(order.createdAt);
+          return orderDate.getMonth() === index && orderDate.getFullYear() === new Date().getFullYear();
+        });
+        
+        return {
+          month,
+          revenue: monthOrders.reduce((sum: number, order: any) => sum + parseFloat(order.total || 0), 0),
+          orders: monthOrders.length
+        };
+      });
+      
+      // Generate top products from orders (simplified approach)
+      const productSales: { [key: string]: { totalSold: number; revenue: number } } = {};
+      ordersResponse.forEach((order: any) => {
+        order.items?.forEach((item: any) => {
+          const productName = item.productName || item.product?.name || 'Produit';
+          if (!productSales[productName]) {
+            productSales[productName] = { totalSold: 0, revenue: 0 };
+          }
+          productSales[productName].totalSold += item.quantity || 0;
+          productSales[productName].revenue += (item.quantity || 0) * parseFloat(item.price || 0);
+        });
+      });
+      
+      const topProducts = Object.entries(productSales)
+        .map(([productName, data]) => ({ productName, ...data }))
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 5);
+      
+      const analyticsData: AnalyticsData = {
+        totalRevenue: statsResponse.totalRevenue || 0,
+        totalOrders: statsResponse.totalOrders || 0,
+        averageOrderValue: statsResponse.totalOrders > 0 ? 
+          (statsResponse.totalRevenue / statsResponse.totalOrders) : 0,
+        customerCount: statsResponse.totalCustomers || 0,
+        revenueGrowth: statsResponse.revenueGrowth || 0,
+        ordersGrowth: statsResponse.ordersGrowth || 0,
+        monthlyData,
+        topProducts
       };
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      setAnalytics(mockData);
+      setAnalytics(analyticsData);
       setError(null);
     } catch (err) {
       console.error('Error loading analytics:', err);
       setError('Erreur lors du chargement des statistiques');
+      
+      // Set default empty analytics on error
+      setAnalytics({
+        totalRevenue: 0,
+        totalOrders: 0,
+        averageOrderValue: 0,
+        customerCount: 0,
+        revenueGrowth: 0,
+        ordersGrowth: 0,
+        monthlyData: [],
+        topProducts: []
+      });
     } finally {
       setLoading(false);
     }

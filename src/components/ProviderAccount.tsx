@@ -26,68 +26,73 @@ const ProviderAccount = () => {
       loadDashboardData();
     }
   }, [activeTab, hasShop]);
-
   const checkUserShopStatus = async () => {
     try {
-      const user = getCurrentUser();
-      // For now, we'll assume the user has a shop if they have profile data
-      // In the future, this should check if the user has created a shop through the backend
-      setHasShop(user?.profile?.shopName ? true : false);
+      setLoading(true);
       
-      // Simulate checking shop status - for demo purposes, set to true
-      // TODO: Replace with real API call to check if producer has created a shop
-      setTimeout(() => {
-        setHasShop(true); // Allow access to dashboard for demo
-        setLoading(false);
-      }, 500);
+      // Check if user has created any shops
+      const shopsResponse = await api.shops.getMyShops();
+      const hasShops = Array.isArray(shopsResponse) && shopsResponse.length > 0;
+      
+      setHasShop(hasShops);
     } catch (error) {
       console.error('Error checking shop status:', error);
+      // On error, assume no shops for security
+      setHasShop(false);
+    } finally {
       setLoading(false);
     }
   };
-
   const loadDashboardData = async () => {
     try {
       setLoading(true);
       
-      // Since backend doesn't have orders endpoints yet, use mock data
-      // TODO: Replace with real API calls once backend is implemented
-      const mockAnalytics = {
-        totalRevenue: 1247.50,
-        totalOrders: 23,
-        activeProducts: 12,
-        customerCount: 18,
-        revenueGrowth: 12.5,
-        ordersGrowth: 5.2,
-        averageOrderValue: 54.22
+      // Load real data from backend APIs
+      const [statsResponse, ordersResponse] = await Promise.all([
+        api.producers.getStats(),
+        api.orders.getProducerOrders()
+      ]);
+      
+      // Transform stats data
+      const analytics = {
+        totalRevenue: statsResponse.totalRevenue || 0,
+        totalOrders: statsResponse.totalOrders || 0,
+        activeProducts: statsResponse.totalProducts || 0,
+        customerCount: statsResponse.totalCustomers || 0,
+        revenueGrowth: statsResponse.revenueGrowth || 0,
+        ordersGrowth: statsResponse.ordersGrowth || 0,
+        averageOrderValue: statsResponse.totalOrders > 0 ? 
+          (statsResponse.totalRevenue / statsResponse.totalOrders) : 0
       };
       
-      const mockRecentOrders = [
-        {
-          id: '001',
-          customerName: 'Marie Dupont',
-          items: '2x Tomates bio, 1x Miel de lavande',
-          total: 21.00,
-          status: 'En attente',
-          date: new Date().toISOString()
-        },
-        {
-          id: '002',
-          customerName: 'Jean Martin',
-          items: '1x Tomates bio',
-          total: 4.50,
-          status: 'Prête',
-          date: new Date(Date.now() - 86400000).toISOString()
-        }
-      ];
+      // Transform recent orders data - get last 5 orders
+      const recentOrdersData = ordersResponse.slice(0, 5).map((order: any) => ({
+        id: order.id,
+        customerName: order.customerName || order.customer?.firstName + ' ' + order.customer?.lastName || 'Client',
+        items: order.items?.map((item: any) => `${item.quantity}x ${item.productName || item.product?.name}`).join(', ') || 'Produits',
+        total: parseFloat(order.total) || 0,
+        status: order.status === 'PENDING' ? 'En attente' : 
+                order.status === 'PREPARED' ? 'Préparée' :
+                order.status === 'READY' ? 'Prête' :
+                order.status === 'PICKED_UP' ? 'Récupérée' : 'En attente',
+        date: order.createdAt
+      }));
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      setAnalytics(mockAnalytics);
-      setRecentOrders(mockRecentOrders);
+      setAnalytics(analytics);
+      setRecentOrders(recentOrdersData);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
+      // Set default values on error
+      setAnalytics({
+        totalRevenue: 0,
+        totalOrders: 0,
+        activeProducts: 0,
+        customerCount: 0,
+        revenueGrowth: 0,
+        ordersGrowth: 0,
+        averageOrderValue: 0
+      });
+      setRecentOrders([]);
     } finally {
       setLoading(false);
     }

@@ -4,6 +4,7 @@ import { Package, Clock, CheckCircle, XCircle, Eye, MapPin } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { api } from '@/lib/api';
 
 interface Order {
   id: number;
@@ -30,90 +31,44 @@ const OrderManagement = () => {
   useEffect(() => {
     loadOrders();
   }, []);
-
   const loadOrders = async () => {
     try {
       setLoading(true);
       
-      // Mock data instead of API call since backend doesn't have order endpoints yet
-      const mockOrders: Order[] = [
-        {
-          id: 1,
-          customerName: 'Marie Dupont',
-          customerEmail: 'marie.dupont@email.com',
-          items: [
-            { id: 1, productName: 'Tomates bio', quantity: 2, price: 4.50 },
-            { id: 2, productName: 'Miel de lavande', quantity: 1, price: 12.00 }
-          ],
-          total: 21.00,
-          status: 'pending',
-          createdAt: '2024-01-15T10:30:00Z',
-          pickupDate: '2024-01-16T16:00:00Z',
-          pickupPoint: 'Marché de Provence'
-        },
-        {
-          id: 2,
-          customerName: 'Jean Martin',
-          customerEmail: 'jean.martin@email.com',
-          items: [
-            { id: 3, productName: 'Pommes Bio Gala', quantity: 3, price: 3.50 },
-            { id: 4, productName: 'Carottes du Potager', quantity: 2, price: 2.80 }
-          ],
-          total: 16.10,
-          status: 'confirmed',
-          createdAt: '2024-01-14T14:20:00Z',
-          pickupDate: '2024-01-15T18:00:00Z',
-          pickupPoint: 'Épicerie Bio du Quartier'
-        },
-        {
-          id: 3,
-          customerName: 'Sophie Leclerc',
-          customerEmail: 'sophie.leclerc@email.com',
-          items: [
-            { id: 5, productName: 'Œufs Fermiers', quantity: 2, price: 4.20 },
-            { id: 6, productName: 'Pain de Campagne', quantity: 1, price: 3.80 }
-          ],
-          total: 12.20,
-          status: 'ready',
-          createdAt: '2024-01-13T09:15:00Z',
-          pickupDate: '2024-01-14T12:00:00Z',
-          pickupPoint: 'Ferme du Soleil'
-        },
-        {
-          id: 4,
-          customerName: 'Pierre Bernard',
-          customerEmail: 'pierre.bernard@email.com',
-          items: [
-            { id: 7, productName: 'Salade de saison', quantity: 1, price: 2.50 }
-          ],
-          total: 2.50,
-          status: 'completed',
-          createdAt: '2024-01-12T16:45:00Z',
-          pickupDate: '2024-01-13T10:00:00Z',
-          pickupPoint: 'Marché Saint-Germain'
-        },
-        {
-          id: 5,
-          customerName: 'Emma Rousseau',
-          customerEmail: 'emma.rousseau@email.com',
-          items: [
-            { id: 8, productName: 'Tomates Cerises', quantity: 2, price: 5.20 }
-          ],
-          total: 10.40,
-          status: 'cancelled',
-          createdAt: '2024-01-11T11:30:00Z',
-          pickupPoint: 'Serre des Délices'
-        }
-      ];
+      // Load real orders from backend API
+      const ordersData = await api.orders.getProducerOrders();
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Transform backend data to match component interface
+      const transformedOrders: Order[] = ordersData.map((order: any) => ({
+        id: order.id,
+        customerName: order.customerName || 
+          (order.customer ? `${order.customer.firstName} ${order.customer.lastName}` : 'Client'),
+        customerEmail: order.customerEmail || order.customer?.email || '',
+        items: order.items?.map((item: any) => ({
+          id: item.id,
+          productName: item.productName || item.product?.name || 'Produit',
+          quantity: item.quantity,
+          price: parseFloat(item.price) || 0
+        })) || [],
+        total: parseFloat(order.total) || 0,
+        status: order.status?.toLowerCase() === 'pending' ? 'pending' :
+                order.status?.toLowerCase() === 'prepared' ? 'confirmed' :
+                order.status?.toLowerCase() === 'ready' ? 'ready' :
+                order.status?.toLowerCase() === 'picked_up' ? 'completed' :
+                order.status?.toLowerCase() === 'cancelled' ? 'cancelled' : 'pending',
+        createdAt: order.createdAt,
+        pickupDate: order.pickupDate,
+        pickupPoint: order.pickupPoint || 'Non spécifié'
+      }));
       
-      setOrders(mockOrders);
+      setOrders(transformedOrders);
       setError(null);
     } catch (err) {
       console.error('Error loading orders:', err);
       setError('Erreur lors du chargement des commandes');
+      
+      // Fallback to empty array on error
+      setOrders([]);
     } finally {
       setLoading(false);
     }
@@ -140,13 +95,18 @@ const OrderManagement = () => {
       case 'cancelled': return <XCircle className="text-red-600" size={20} />;
       default: return <Clock className="text-gray-600" size={20} />;
     }
-  };
-  const updateOrderStatus = async (orderId: number, newStatus: Order['status']) => {
+  };  const updateOrderStatus = async (orderId: number, newStatus: Order['status']) => {
     try {
-      // Mock API call since backend doesn't have order status update endpoint yet
-      // TODO: Replace with real API call once backend is implemented
-      await new Promise(resolve => setTimeout(resolve, 300)); // Simulate API delay
+      // Map frontend status to backend status
+      const backendStatus = newStatus === 'pending' ? 'PENDING' :
+                          newStatus === 'confirmed' ? 'PREPARED' :
+                          newStatus === 'ready' ? 'READY' :
+                          newStatus === 'completed' ? 'PICKED_UP' :
+                          newStatus === 'cancelled' ? 'CANCELLED' : 'PENDING';
       
+      await api.orders.updateStatus(orderId.toString(), backendStatus);
+      
+      // Update local state
       setOrders(orders.map(order => 
         order.id === orderId ? { ...order, status: newStatus } : order
       ));
