@@ -21,8 +21,9 @@ app.use(cors({
   credentials: true
 }));
 
-// Middleware
-app.use(express.json());
+// Middleware - Increase body size limits for image uploads
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Initialize database connection
 AppDataSource.initialize()

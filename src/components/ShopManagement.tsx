@@ -46,7 +46,9 @@ const ShopManagement = () => {
     } finally {
       setLoading(false);
     }
-  };  const handleCreateShop = async () => {
+  };  const handleCreateShop = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    
     try {
       const shopData = {
         name: formData.name,
@@ -66,7 +68,8 @@ const ShopManagement = () => {
       console.error('Error creating shop:', error);
       alert('Erreur lors de la création de la boutique: ' + (error.message || 'Erreur inconnue'));
     }
-  };  const handleUpdateShop = async () => {
+  };  const handleUpdateShop = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!editingShop) return;
     
     try {
@@ -163,85 +166,94 @@ const ShopManagement = () => {
             <CardTitle>
               {editingShop ? 'Modifier la boutique' : 'Créer une nouvelle boutique'}
             </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          </CardHeader>          <CardContent>
+            <form onSubmit={editingShop ? handleUpdateShop : handleCreateShop} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Nom de la boutique</label>
+                  <Input
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Ex: Ferme Bio du Soleil"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Email</label>
+                  <Input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="contact@ferme-bio.com"
+                    required
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-sm font-medium mb-1">Nom de la boutique</label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Ex: Ferme Bio du Soleil"
+                <label className="block text-sm font-medium mb-1">Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  rows={3}
+                  placeholder="Décrivez votre exploitation et vos produits..."
+                  required
                 />
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Adresse</label>
+                  <Input
+                    value={formData.address}
+                    onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                    placeholder="123 Route de la Campagne"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Téléphone</label>
+                  <Input
+                    value={formData.phone}
+                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="04 42 12 34 56"
+                    required
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-sm font-medium mb-1">Email</label>
+                <label className="block text-sm font-medium mb-1">Spécialités</label>
                 <Input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="contact@ferme-bio.com"
+                  value={formData.specialties}
+                  onChange={(e) => setFormData(prev => ({ ...prev, specialties: e.target.value }))}
+                  placeholder="Légumes bio, Fruits de saison, Miel..."
+                  required
                 />
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Description</label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                rows={3}
-                placeholder="Décrivez votre exploitation et vos produits..."
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Adresse</label>
-                <Input
-                  value={formData.address}
-                  onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                  placeholder="123 Route de la Campagne"
+                <label className="block text-sm font-medium mb-2">Photos de la boutique</label>
+                <PhotoUpload
+                  images={formData.images}
+                  onImagesChange={(images) => setFormData(prev => ({ ...prev, images }))}
+                  maxImages={5}
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Téléphone</label>
-                <Input
-                  value={formData.phone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="04 42 12 34 56"
-                />
+
+              <div className="flex space-x-3">
+                <Button 
+                  type="submit"
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {editingShop ? 'Mettre à jour' : 'Créer'}
+                </Button>
+                <Button type="button" variant="outline" onClick={cancelEdit}>
+                  Annuler
+                </Button>
               </div>
-            </div>            <div>
-              <label className="block text-sm font-medium mb-1">Spécialités</label>
-              <Input
-                value={formData.specialties}
-                onChange={(e) => setFormData(prev => ({ ...prev, specialties: e.target.value }))}
-                placeholder="Légumes bio, Fruits de saison, Miel..."
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Photos de la boutique</label>
-              <PhotoUpload
-                images={formData.images}
-                onImagesChange={(images) => setFormData(prev => ({ ...prev, images }))}
-                maxImages={5}
-              />
-            </div>
-
-            <div className="flex space-x-3">
-              <Button 
-                onClick={editingShop ? handleUpdateShop : handleCreateShop}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                {editingShop ? 'Mettre à jour' : 'Créer'}
-              </Button>
-              <Button variant="outline" onClick={cancelEdit}>
-                Annuler
-              </Button>
-            </div>
+            </form>
           </CardContent>
         </Card>
       )}

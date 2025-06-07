@@ -15,11 +15,10 @@ export interface ImageCompressionOptions {
 export const compressImage = async (
   file: File,
   options: ImageCompressionOptions = {}
-): Promise<string> => {
-  const {
-    maxWidth = 1200,
-    maxHeight = 1200,
-    quality = 0.8,
+): Promise<string> => {  const {
+    maxWidth = 800,  // Reduced from 1200
+    maxHeight = 800, // Reduced from 1200
+    quality = 0.7,   // Reduced from 0.8 for better compression
     format = 'jpeg'
   } = options;
 
@@ -61,7 +60,7 @@ export const compressImage = async (
  * Validate image file before upload
  */
 export const validateImageFile = (file: File): string | null => {
-  const maxSize = 10 * 1024 * 1024; // 10MB
+  const maxSize = 5 * 1024 * 1024; // Reduced from 10MB to 5MB
   const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
   if (!allowedTypes.includes(file.type)) {
@@ -87,9 +86,8 @@ export const fileToBase64WithCompression = async (
   if (validationError) {
     throw new Error(validationError);
   }
-
   // For small files, just convert without compression
-  if (file.size < 500 * 1024) { // 500KB
+  if (file.size < 200 * 1024) { // Reduced from 500KB to 200KB for earlier compression
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
