@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { border-color: #4caf50; background-color: #f1f8e9; }
+        .error { border-color: #f44336; background-color: #ffebee; }
+        .loading { border-color: #ff9800; background-color: #fff3e0; }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            max-height: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Frontend API Integration Test</h1>
+        <p>Testing frontend API connectivity and data loading...</p>
+        
+        <div id="backend-health" class="test-section loading">
+            <h3>📡 Backend Health Check</h3>
+            <p>Testing: <code>GET /api/health</code></p>
+            <div id="health-result">⏳ Loading...</div>
+        </div>
+        
+        <div id="products-test" class="test-section loading">
+            <h3>📦 Products API Test</h3>
+            <p>Testing: <code>GET /api/products</code></p>
+            <div id="products-result">⏳ Loading...</div>
+        </div>
+        
+        <div id="producers-test" class="test-section loading">
+            <h3>👨‍🌾 Producers API Test</h3>
+            <p>Testing: <code>GET /api/producers/public</code></p>
+            <div id="producers-result">⏳ Loading...</div>
+        </div>
+        
+        <div id="frontend-test" class="test-section loading">
+            <h3>🌐 Frontend Loading Test</h3>
+            <p>Testing if frontend can access API and transform data correctly</p>
+            <div id="frontend-result">⏳ Loading...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:3001/api';
+        
+        // Test backend health
+        async function testBackendHealth() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                const data = await response.json();
+                
+                document.getElementById('backend-health').className = 'test-section success';
+                document.getElementById('health-result').innerHTML = `
+                    ✅ Backend is healthy<br>
+                    Status: ${response.status}<br>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('backend-health').className = 'test-section error';
+                document.getElementById('health-result').innerHTML = `
+                    ❌ Backend health check failed<br>
+                    Error: ${error.message}
+                `;
+            }
+        }
+        
+        // Test products API
+        async function testProductsAPI() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/products`);
+                const products = await response.json();
+                
+                document.getElementById('products-test').className = 'test-section success';
+                document.getElementById('products-result').innerHTML = `
+                    ✅ Products loaded successfully<br>
+                    Count: ${products.length} products<br>
+                    Sample product: <pre>${JSON.stringify(products[0] || 'No products', null, 2)}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('products-test').className = 'test-section error';
+                document.getElementById('products-result').innerHTML = `
+                    ❌ Products API failed<br>
+                    Error: ${error.message}
+                `;
+            }
+        }
+        
+        // Test producers API
+        async function testProducersAPI() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/producers/public`);
+                const producers = await response.json();
+                
+                document.getElementById('producers-test').className = 'test-section success';
+                document.getElementById('producers-result').innerHTML = `
+                    ✅ Producers loaded successfully<br>
+                    Count: ${producers.length} producers<br>
+                    Sample producer: <pre>${JSON.stringify(producers[0] || 'No producers', null, 2)}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('producers-test').className = 'test-section error';
+                document.getElementById('producers-result').innerHTML = `
+                    ❌ Producers API failed<br>
+                    Error: ${error.message}
+                `;
+            }
+        }
+        
+        // Test frontend data transformation (simulate what Index.tsx does)
+        async function testFrontendDataTransformation() {
+            try {
+                // Load data like Index.tsx does
+                const [productsData, producersData] = await Promise.all([
+                    fetch(`${API_BASE_URL}/products`).then(r => r.json()),
+                    fetch(`${API_BASE_URL}/producers/public`).then(r => r.json())
+                ]);
+                
+                // Transform products data to match frontend interface
+                const transformedProducts = productsData.map((product) => ({
+                    id: product.id,
+                    name: product.name,
+                    description: product.description || '',
+                    price: product.price,
+                    unit: product.unit,
+                    stock: product.stock,
+                    category: product.category,
+                    imageUrl: product.image || product.images?.[0] || '/placeholder.svg',
+                    images: product.images || [],
+                    producer: {
+                        id: product.producerId || product.producer?.id || 'unknown',
+                        name: typeof product.producer === 'string' ? product.producer : 
+                              (product.producer?.name || product.producer?.shopName || 'Unknown'),
+                        shopName: typeof product.producer === 'object' ? product.producer.shopName : undefined
+                    },
+                    isAvailable: product.isAvailable
+                }));
+                
+                // Transform producers data
+                const transformedProducers = producersData.map((producer) => ({
+                    id: producer.id,
+                    name: producer.shopName || producer.name,
+                    description: producer.description || '',
+                    specialties: producer.certifications || [],
+                    image: producer.imageUrl || '/placeholder.svg',
+                    location: producer.address || producer.location || ''
+                }));
+                
+                const uniqueCategories = Array.from(new Set(transformedProducts.map(product => product.category)));
+                
+                document.getElementById('frontend-test').className = 'test-section success';
+                document.getElementById('frontend-result').innerHTML = `
+                    ✅ Frontend data transformation successful<br>
+                    Products: ${transformedProducts.length}<br>
+                    Producers: ${transformedProducers.length}<br>
+                    Categories: ${uniqueCategories.length} (${uniqueCategories.join(', ')})<br>
+                    <br>
+                    Sample transformed product:
+                    <pre>${JSON.stringify(transformedProducts[0] || 'No products', null, 2)}</pre>
+                    <br>
+                    Sample transformed producer:
+                    <pre>${JSON.stringify(transformedProducers[0] || 'No producers', null, 2)}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('frontend-test').className = 'test-section error';
+                document.getElementById('frontend-result').innerHTML = `
+                    ❌ Frontend data transformation failed<br>
+                    Error: ${error.message}<br>
+                    Stack: <pre>${error.stack}</pre>
+                `;
+            }
+        }
+        
+        // Run all tests
+        async function runAllTests() {
+            await testBackendHealth();
+            await testProductsAPI();
+            await testProducersAPI();
+            await testFrontendDataTransformation();
+        }
+        
+        // Start tests when page loads
+        window.addEventListener('load', runAllTests);
+    </script>
+</body>
+</html>

@@ -232,7 +232,6 @@ export const customerAPI = {
     });
     return handleResponse(response);
   },
-
   updatePreferences: async (preferences: {
     notifications?: boolean;
     newsletter?: boolean;
@@ -246,6 +245,113 @@ export const customerAPI = {
       body: JSON.stringify({ preferences })
     });
     return handleResponse(response);
+  },
+
+  // Payment Methods
+  getPaymentMethods: async () => {
+    const response = await fetch(`${API_BASE_URL}/users/customer/payment-methods`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  addPaymentMethod: async (paymentMethodData: {
+    type: string;
+    cardLastFour: string;
+    cardBrand: string;
+    expiryMonth: string;
+    holderName?: string;
+    isDefault?: boolean;
+    stripePaymentMethodId?: string;
+  }) => {
+    const response = await fetch(`${API_BASE_URL}/users/customer/payment-methods`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(paymentMethodData)
+    });
+    return handleResponse(response);
+  },
+
+  updatePaymentMethod: async (id: string, updateData: {
+    isDefault?: boolean;
+    holderName?: string;
+  }) => {
+    const response = await fetch(`${API_BASE_URL}/users/customer/payment-methods/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(updateData)
+    });
+    return handleResponse(response);
+  },
+
+  deletePaymentMethod: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/users/customer/payment-methods/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Network error' }));
+      throw new Error(error.message || 'Something went wrong');
+    }
+  },
+
+  // Addresses
+  getAddresses: async () => {
+    const response = await fetch(`${API_BASE_URL}/users/customer/addresses`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  addAddress: async (addressData: {
+    type: string;
+    street: string;
+    street2?: string;
+    city: string;
+    postalCode: string;
+    country?: string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    isDefault?: boolean;
+  }) => {
+    const response = await fetch(`${API_BASE_URL}/users/customer/addresses`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(addressData)
+    });
+    return handleResponse(response);
+  },
+
+  updateAddress: async (id: string, updateData: {
+    type?: string;
+    street?: string;
+    street2?: string;
+    city?: string;
+    postalCode?: string;
+    country?: string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    isDefault?: boolean;
+  }) => {
+    const response = await fetch(`${API_BASE_URL}/users/customer/addresses/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(updateData)
+    });
+    return handleResponse(response);
+  },
+
+  deleteAddress: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/users/customer/addresses/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Network error' }));
+      throw new Error(error.message || 'Something went wrong');
+    }
   }
 };
 

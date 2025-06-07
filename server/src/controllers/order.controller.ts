@@ -5,6 +5,7 @@ import { Customer } from '../models/Customer';
 import { Producer } from '../models/Producer';
 import { Product } from '../models/Product';
 import { User } from '../models/User';
+import { emailService } from '../services/emailService';
 
 // Helper function to safely format dates
 const formatDate = (date: any): string | null => {
@@ -185,14 +186,14 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    const { producerId, items, pickupDate, pickupPoint, notes } = req.body;
+    const { producerId, items, pickupDate, pickupPoint, notes, paymentMethodId, paymentIntentId, paymentStatus } = req.body;
 
     if (!producerId || !items || !Array.isArray(items) || items.length === 0) {
       res.status(400).json({ message: 'Producer ID and items are required' });
       return;
     }    const producer = await producerRepository.findOne({
       where: { id: producerId },
-      relations: ['shops']
+      relations: ['shops', 'user']
     });
 
     if (!producer) {
@@ -230,7 +231,10 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     order.customer = customer;
     order.producer = producer;
     order.total = total;
-    order.status = OrderStatus.PENDING;    if (pickupDate) {
+    order.status = OrderStatus.PENDING;
+    order.paymentMethodId = paymentMethodId;
+    order.paymentIntentId = paymentIntentId;
+    order.paymentStatus = paymentStatus || 'pending';if (pickupDate) {
       order.pickupDate = new Date(pickupDate);
     }
     // Get pickup info from producer's first shop (fallback logic)
@@ -249,7 +253,39 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       return orderItem;
     });
 
-    await orderItemRepository.save(orderItems);    res.status(201).json({
+    await orderItemRepository.save(orderItems);    // Send email notifications
+    try {
+      const emailData = {
+        orderId: savedOrder.id,
+        customerName: `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Client',
+        customerEmail: user.email,
+        producerName: producer.shops?.[0]?.name || 'Producer',
+        items: validatedItems.map(item => ({
+          name: item.productName,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice
+        })),
+        total: savedOrder.total,
+        pickupPoint: savedOrder.pickupPoint,
+        pickupDate: savedOrder.pickupDate ? savedOrder.pickupDate.toISOString().split('T')[0] : undefined
+      };
+
+      // Send confirmation email to customer
+      await emailService.sendOrderConfirmation(emailData);
+
+      // Send notification email to producer
+      if (producer.user?.email) {
+        await emailService.sendProducerOrderNotification({
+          ...emailData,
+          producerEmail: producer.user.email
+        });
+      }
+    } catch (emailError) {
+      console.error('Error sending email notifications:', emailError);
+      // Don't fail the order creation if email fails
+    }
+
+    res.status(201).json({
       id: savedOrder.id,
       message: 'Order created successfully',
       order: {
@@ -304,22 +340,38 @@ export const updateOrderStatus = async (req: Request, res: Response): Promise<vo
     if (!Object.values(OrderStatus).includes(status)) {
       res.status(400).json({ message: 'Invalid order status' });
       return;
-    }
-
-    const order = await orderRepository.findOne({
+    }    const order = await orderRepository.findOne({
       where: { 
         id: orderId,
         producer: { id: producer.id }
-      }
+      },
+      relations: ['customer', 'customer.user', 'producer', 'producer.user']
     });
 
     if (!order) {
       res.status(404).json({ message: 'Order not found or access denied' });
       return;
-    }
-
-    order.status = status;
+    }    order.status = status;
     await orderRepository.save(order);
+
+    // Send email notification for status update
+    try {
+      if (order.customer?.user?.email) {
+        const statusUpdateData = {
+          orderId: order.id,
+          customerName: `${order.customer.firstName || ''} ${order.customer.lastName || ''}`.trim() || 'Client',
+          customerEmail: order.customer.user.email,
+          producerName: producer.shops?.[0]?.name || 'Producer',
+          status: status,
+          pickupPoint: order.pickupPoint
+        };
+
+        await emailService.sendOrderStatusUpdate(statusUpdateData);
+      }
+    } catch (emailError) {
+      console.error('Error sending status update email:', emailError);
+      // Don't fail the status update if email fails
+    }
 
     res.json({ message: 'Order status updated successfully', status });
   } catch (error) {

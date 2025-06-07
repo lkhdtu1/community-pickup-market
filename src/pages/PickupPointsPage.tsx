@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import MapView from '../components/MapView';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
+import { useCart } from '../contexts/CartContext';
 
 interface PickupPoint {
   id: number;
@@ -64,6 +65,7 @@ const PickupPointsPage = () => {
   const [selectedPoint, setSelectedPoint] = useState<PickupPoint | null>(null);
   const [isMapView, setIsMapView] = useState(true);
   const navigate = useNavigate();
+  const { cartItemsCount } = useCart();
 
   const handleSearch = (query: string) => {
     navigate(`/products?search=${query}`);
@@ -99,10 +101,9 @@ const PickupPointsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header 
-        cartItemsCount={0}
-        onCartClick={() => {}}
+    <div className="min-h-screen bg-gray-50">      <Header 
+        cartItemsCount={cartItemsCount}
+        onCartClick={() => navigate('/products')}
         onSearch={handleSearch}
       />
       

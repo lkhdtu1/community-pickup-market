@@ -3,6 +3,7 @@ import Header from '../components/Header';
 import ProducerCard from '../components/ProducerCard';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
+import { useCart } from '../contexts/CartContext';
 
 interface Producer {
   id: string;
@@ -19,6 +20,7 @@ const ProducersPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { cartItemsCount } = useCart();
 
   useEffect(() => {
     loadProducers();
@@ -57,10 +59,9 @@ const ProducersPage = () => {
     )
   );
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header 
-        cartItemsCount={0}
-        onCartClick={() => {}}
+    <div className="min-h-screen bg-gray-50">      <Header 
+        cartItemsCount={cartItemsCount}
+        onCartClick={() => navigate('/products')}
         onSearch={setSearchQuery}
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

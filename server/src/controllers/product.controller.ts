@@ -3,127 +3,51 @@ import { AppDataSource } from '../database';
 import { Product } from '../models/Product';
 import { Producer } from '../models/Producer';
 import { Shop } from '../models/Shop';
+import { PerformanceService } from '../services/performanceService';
+import { catchAsync } from '../services/errorService';
 
-// Get all products (for customers)
-export const getAllProducts = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const productRepository = AppDataSource.getRepository(Product);
-    const { category, producer, search } = req.query;
+// Get all products (for customers) - Enhanced with caching and performance optimization
+export const getAllProducts = catchAsync(async (req: Request, res: Response): Promise<void> => {
+  const { category, search } = req.query;
 
-    // Get products with shop and producer information
-    const queryBuilder = productRepository.createQueryBuilder('product')
-      .leftJoinAndSelect('product.shop', 'shop')
-      .leftJoinAndSelect('shop.producer', 'producer')
-      .leftJoinAndSelect('producer.user', 'user')
-      .where('product.isAvailable = :isAvailable', { isAvailable: true });
+  // Use performance service for optimized product queries
+  const products = await PerformanceService.getProducts({
+    category: category as string,
+    search: search as string,
+    isAvailable: true
+  });
 
-    if (category) {
-      queryBuilder.andWhere('product.category = :category', { category });
-    }
+  res.json(products);
+});
 
-    if (producer) {
-      queryBuilder.andWhere('shop.name ILIKE :producer', { producer: `%${producer}%` });
-    }
+// Get products by producer (for producer's admin panel) - Enhanced with performance optimization
+export const getProducerProducts = catchAsync(async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user?.userId;
 
-    if (search) {
-      queryBuilder.andWhere(
-        '(product.name ILIKE :search OR product.description ILIKE :search OR shop.name ILIKE :search)',
-        { search: `%${search}%` }
-      );
-    }
-
-    queryBuilder.orderBy('product.createdAt', 'DESC');
-
-    const products = await queryBuilder.getMany();
-
-    // Format products for frontend
-    const formattedProducts = products.map(product => ({
-      id: product.id,
-      name: product.name,
-      price: parseFloat(product.price.toString()),
-      unit: product.unit,
-      category: product.category,
-      description: product.description,
-      image: product.images?.[0] || '/placeholder.svg',
-      images: product.images || [],
-      producer: product.shop.name,
-      producerId: product.shop.producer.id,
-      shopId: product.shop.id,
-      stock: product.stock,
-      isAvailable: product.isAvailable
-    }));
-
-    res.json(formattedProducts);
-  } catch (error) {
-    console.error('Error fetching products:', error);
-    res.status(500).json({ message: 'Error fetching products' });
+  if (!userId) {
+    res.status(401).json({ message: 'User not authenticated' });
+    return;
   }
-};
 
-// Get products by producer (for producer's admin panel)
-export const getProducerProducts = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const productRepository = AppDataSource.getRepository(Product);
-    const producerRepository = AppDataSource.getRepository(Producer);
-    const userId = req.user?.userId;
+  // Find producer ID
+  const producerRepository = AppDataSource.getRepository(Producer);
+  const producer = await producerRepository.findOne({
+    where: { user: { id: userId } },
+    relations: ['user']
+  });
 
-    if (!userId) {
-      res.status(401).json({ message: 'User not authenticated' });
-      return;
-    }
-
-    // Find producer by user ID
-    const producer = await producerRepository.findOne({
-      where: { user: { id: userId } },
-      relations: ['user', 'shops']
-    });
-
-    if (!producer) {
-      res.status(404).json({ message: 'Producer profile not found' });
-      return;
-    }
-
-    // Get shop IDs for this producer
-    const shopIds = producer.shops.map(shop => shop.id);
-
-    if (shopIds.length === 0) {
-      res.json([]);
-      return;
-    }
-
-    // Get all products for this producer's shops
-    const queryBuilder = productRepository.createQueryBuilder('product')
-      .leftJoinAndSelect('product.shop', 'shop')
-      .where('shop.id IN (:...shopIds)', { shopIds })
-      .orderBy('product.createdAt', 'DESC');
-
-    const products = await queryBuilder.getMany();
-
-    // Format products for frontend
-    const formattedProducts = products.map(product => ({
-      id: product.id,
-      name: product.name,
-      price: parseFloat(product.price.toString()),
-      stock: product.stock,
-      category: product.category,
-      image: product.images?.[0] || '/placeholder.svg',
-      images: product.images || [],
-      status: product.stock === 0 ? 'rupture' : (product.isAvailable ? 'active' : 'inactive'),
-      description: product.description,
-      unit: product.unit,
-      isAvailable: product.isAvailable,
-      shopId: product.shop.id,
-      shopName: product.shop.name,
-      createdAt: product.createdAt,
-      updatedAt: product.updatedAt
-    }));
-
-    res.json(formattedProducts);
-  } catch (error) {
-    console.error('Error fetching producer products:', error);
-    res.status(500).json({ message: 'Error fetching producer products' });
+  if (!producer) {
+    res.status(404).json({ message: 'Producer profile not found' });
+    return;
   }
-};
+
+  // Use performance service for optimized product queries
+  const products = await PerformanceService.getProducts({
+    producerId: producer.id
+  });
+
+  res.json(products);
+});
 
 // Create new product (for producers)
 export const createProduct = async (req: Request, res: Response): Promise<void> => {

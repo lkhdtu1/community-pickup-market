@@ -3,11 +3,10 @@ const axios = require('axios');
 async function testFrontendAuth() {
   try {
     console.log('🧪 Testing frontend authentication integration...\n');
-    
-    // Test 1: Login with existing test customer
+      // Test 1: Login with existing test customer
     console.log('1. Testing customer login...');
     const loginResponse = await axios.post('http://localhost:3001/api/auth/login', {
-      email: 'test-customer-1749229238406@example.com',
+      email: 'test-customer-1749250564414@example.com',
       password: 'password123'
     });
     console.log('✅ Customer login successful');
@@ -28,11 +27,10 @@ async function testFrontendAuth() {
       headers: { Authorization: `Bearer ${customerToken}` }
     });
     console.log('✅ Token verification successful');
-    
-    // Test 4: Producer login
+      // Test 4: Producer login
     console.log('\n4. Testing producer login...');
     const producerLoginResponse = await axios.post('http://localhost:3001/api/auth/login', {
-      email: 'test-producer-1749229238410@example.com',
+      email: 'test-producer-1749250564798@example.com',
       password: 'password123'
     });
     console.log('✅ Producer login successful');

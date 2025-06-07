@@ -7,6 +7,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useForm } from 'react-hook-form';
 import { Store, MapPin, Phone, Mail, ImagePlus } from 'lucide-react';
 import { shopsAPI } from '../lib/api';
+import { useCart } from '../contexts/CartContext';
 
 interface ShopFormData {
   shopName: string;
@@ -21,6 +22,7 @@ const CreateShopPage = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { cartItemsCount } = useCart();
   
   const handleSearch = (query: string) => {
     navigate(`/products?search=${query}`);
@@ -69,10 +71,9 @@ const CreateShopPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header 
-        cartItemsCount={0}
-        onCartClick={() => {}}
+    <div className="min-h-screen bg-gray-50">      <Header 
+        cartItemsCount={cartItemsCount}
+        onCartClick={() => navigate('/products')}
         onSearch={handleSearch}
       />
       

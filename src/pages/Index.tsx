@@ -6,30 +6,25 @@ import ProductCard from '../components/ProductCard';
 import ProductFilters from '../components/ProductFilters';
 import Cart from '../components/Cart';
 import PickupPointSelector from '../components/PickupPointSelector';
+import OrderConfirmation from '../components/OrderConfirmation';
 import ProducerCard from '../components/ProducerCard';
 import LocationSelector from '../components/LocationSelector';
 import AuthModal from '../components/AuthModal';
 import { api } from '@/lib/api';
-import { loadCartFromStorage, saveCartToStorage, addToCart as addToCartUtil, updateCartItemQuantity, removeFromCart as removeFromCartUtil } from '../utils/cartUtils';
-import type { CartItem as StoredCartItem } from '../utils/cartUtils';
+import { useCart } from '../contexts/CartContext';
 import { Product, Producer } from '../types/product';
 
-// Local CartItem interface for the Index page that includes extra properties for display
-interface CartItem extends StoredCartItem {
-  description?: string;
-  stock?: number;
-}
-
-const Index = () => {
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+const Index = () => {  const { addToCart, cartItemsCount, cartItems, updateQuantity, removeFromCart, clearCart } = useCart();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isPickupSelectorOpen, setIsPickupSelectorOpen] = useState(false);
+  const [isOrderConfirmationOpen, setIsOrderConfirmationOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedProducer, setSelectedProducer] = useState("");
   const [currentView, setCurrentView] = useState<'home' | 'products' | 'producers'>('home');
   const [userLocation, setUserLocation] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedPickupPoint, setSelectedPickupPoint] = useState<any>(null);
   
   // State for API data
   const [products, setProducts] = useState<Product[]>([]);
@@ -37,16 +32,7 @@ const Index = () => {
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Load cart from storage on component mount
-  useEffect(() => {
-    const savedCart = loadCartFromStorage();
-    setCartItems(savedCart);
-  }, []);
 
-  // Save cart to storage whenever cart changes
-  useEffect(() => {
-    saveCartToStorage(cartItems);
-  }, [cartItems]);
   // Load data on component mount
   useEffect(() => {
     loadData();
@@ -97,14 +83,14 @@ const Index = () => {
       // Extract unique categories
       const uniqueCategories = Array.from(new Set(transformedProducts.map(product => product.category)));
       setCategories(uniqueCategories);
-      
-    } catch (err) {
+        } catch (err) {
       console.error('Error loading data:', err);
       setError('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
     }
   };
+
   const filteredProducts = products.filter(product => {
     const categoryMatch = selectedCategory === "" || product.category === selectedCategory;
     const producerMatch = selectedProducer === "" || product.producer.name === selectedProducer;
@@ -112,47 +98,19 @@ const Index = () => {
                         product.description?.toLowerCase().includes(searchQuery.toLowerCase());
     return categoryMatch && producerMatch && searchMatch;
   });
-  const addToCart = (product: Product) => {
-    setCartItems(prevItems => {
-      const existingItem = prevItems.find(item => item.id === product.id);
-      if (existingItem) {
-        return prevItems.map(item =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      } else {        // Convert Product to CartItem format
-        const cartItem: CartItem = {
-          id: product.id,
-          name: product.name,
-          price: product.price,
-          unit: product.unit,
-          image: product.imageUrl, // Map imageUrl to image for CartItem
-          producer: product.producer.name,
-          category: product.category,
-          quantity: 1,
-          description: product.description,
-          stock: product.stock
-        };
-        return [...prevItems, cartItem];
-      }
-    });
-  };
 
-  const updateCartQuantity = (id: string, quantity: number) => {
-    if (quantity === 0) {
-      removeFromCart(id);
-    } else {
-      setCartItems(prevItems =>
-        prevItems.map(item =>
-          item.id === id ? { ...item, quantity } : item
-        )
-      );
-    }
-  };
-
-  const removeFromCart = (id: string) => {
-    setCartItems(prevItems => prevItems.filter(item => item.id !== id));
+  // Helper function to convert Product to CartItem format
+  const handleAddToCart = (product: Product) => {
+    const cartItem = {
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      unit: product.unit,
+      image: product.imageUrl,
+      producer: product.producer.name,
+      category: product.category
+    };
+    addToCart(cartItem);
   };
 
   const handleLocationChange = (location: any) => {
@@ -162,9 +120,12 @@ const Index = () => {
   const handleCheckout = () => {
     setIsCartOpen(false);
     setIsPickupSelectorOpen(true);
+  };  const handlePickupPointSelect = (point: any) => {
+    setSelectedPickupPoint(point);
+    setIsPickupSelectorOpen(false);
+    setIsOrderConfirmationOpen(true);
   };
-
-  const handlePickupPointSelect = async (point: any) => {
+  const handleOrderConfirm = async (orderData: any) => {
     try {
       // Group cart items by producer
       const itemsByProducer = cartItems.reduce((acc, item) => {
@@ -181,35 +142,52 @@ const Index = () => {
         return acc;
       }, {} as Record<string, Array<{productId: string, quantity: number}>>);
 
-      // Create orders for each producer
+      // Prepare order notes with payment information
+      let paymentInfo = '';
+      if (orderData.paymentIntentId) {
+        paymentInfo = `Paiement Stripe ID: ${orderData.paymentIntentId}`;
+      } else if (orderData.paymentMethodId) {
+        paymentInfo = `Moyen de paiement: ${orderData.paymentMethodId}`;
+      }
+
+      // Create orders for each producer with payment and billing info
       const orderPromises = Object.entries(itemsByProducer).map(([producerId, items]) =>
         api.orders.create({
           producerId,
           items,
-          pickupPoint: point.name,
-          notes: `Point de retrait: ${point.address}`
+          pickupPoint: orderData.pickupPoint.name,
+          notes: `${orderData.notes}\n${paymentInfo}\nAdresse de facturation: ${orderData.billingAddressId}`,
+          total: orderData.total,
+          paymentStatus: orderData.paymentIntentId ? 'paid' : 'pending'
         })
       );
 
       await Promise.all(orderPromises);
       
-      setCartItems([]);
-      setIsPickupSelectorOpen(false);
-      alert('Commande confirmée ! Vous recevrez un email de confirmation.');
+      clearCart();
+      setIsOrderConfirmationOpen(false);
+      setSelectedPickupPoint(null);
+      
+      // Success is handled by the OrderConfirmation component
     } catch (error) {
       console.error('Error creating order:', error);
-      alert('Erreur lors de la création de la commande. Veuillez réessayer.');
+      throw error; // Re-throw to let OrderConfirmation handle the error
     }
+  };
+
+  const handleOrderConfirmationClose = () => {
+    setIsOrderConfirmationOpen(false);
+    setSelectedPickupPoint(null);
   };
 
   const handleProducerSignup = () => {
     setIsAuthModalOpen(true);
-  };  const handleProducerClick = (producerId: string) => {
+  };
+
+  const handleProducerClick = (producerId: string) => {
     setSelectedProducer(producers.find(p => p.id === producerId)?.name || "");
     setCurrentView('products');
   };
-
-  const cartItemsCount = cartItems.reduce((total, item) => total + item.quantity, 0);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -282,12 +260,11 @@ const Index = () => {
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {products.slice(0, 4).map(product => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">                  {products.slice(0, 4).map(product => (
                     <ProductCard
                       key={product.id}
                       product={product}
-                      onAddToCart={addToCart}
+                      onAddToCart={handleAddToCart}
                     />
                   ))}
                 </div>
@@ -317,7 +294,8 @@ const Index = () => {
             </button>
           </div>
           
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">            <div>
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <div>
               <ProductFilters
                 categories={categories}
                 producers={producers.map(p => p.name)}
@@ -325,16 +303,14 @@ const Index = () => {
                 selectedProducer={selectedProducer}
                 onCategoryChange={setSelectedCategory}
                 onProducerChange={setSelectedProducer}
-              />
-            </div>
-            
-            <div className="lg:col-span-3">
+              />            </div>
+              <div className="lg:col-span-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredProducts.map(product => (
                   <ProductCard
                     key={product.id}
                     product={product}
-                    onAddToCart={addToCart}
+                    onAddToCart={handleAddToCart}
                   />
                 ))}
               </div>
@@ -359,8 +335,7 @@ const Index = () => {
             >
               ← Retour à l'accueil
             </button>
-          </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          </div>          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {producers.map(producer => (
               <ProducerCard 
                 key={producer.id} 
@@ -376,16 +351,25 @@ const Index = () => {
         isOpen={isCartOpen}
         items={cartItems}
         onClose={() => setIsCartOpen(false)}
-        onUpdateQuantity={updateCartQuantity}
+        onUpdateQuantity={updateQuantity}
         onRemoveItem={removeFromCart}
         onCheckout={handleCheckout}
-      />
-
-      <PickupPointSelector
+      />      <PickupPointSelector
         isOpen={isPickupSelectorOpen}
         onClose={() => setIsPickupSelectorOpen(false)}
         onSelect={handlePickupPointSelect}
       />
+
+      {selectedPickupPoint && (
+        <OrderConfirmation
+          isOpen={isOrderConfirmationOpen}
+          onClose={handleOrderConfirmationClose}
+          onConfirm={handleOrderConfirm}
+          cartItems={cartItems}
+          selectedPickupPoint={selectedPickupPoint}
+          total={cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)}
+        />
+      )}
 
       <AuthModal
         isOpen={isAuthModalOpen}

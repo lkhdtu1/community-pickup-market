@@ -41,9 +41,17 @@ export class Order {
 
   @Column({ name: 'pickup_point' })
   pickupPoint: string;
-
   @Column({ type: 'text', nullable: true })
   notes: string;
+
+  @Column({ name: 'payment_method_id', nullable: true })
+  paymentMethodId: string;
+
+  @Column({ name: 'payment_intent_id', nullable: true })
+  paymentIntentId: string;
+
+  @Column({ name: 'payment_status', default: 'pending' })
+  paymentStatus: string; // pending, paid, failed, refunded
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

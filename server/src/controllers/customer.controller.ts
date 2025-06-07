@@ -2,25 +2,29 @@ import { Request, Response } from 'express';
 import { AppDataSource } from '../database';
 import { User } from '../models/User';
 import { Customer } from '../models/Customer';
+import cacheService from '../services/cacheService';
+import { catchAsync } from '../services/errorService';
 
 // Get customer profile
-export const getCustomerProfile = async (req: Request, res: Response): Promise<void> => {
-  try {
+export const getCustomerProfile = catchAsync(async (req: Request, res: Response): Promise<void> => {
+  if (!req.user) {
+    res.status(401).json({ message: 'User not authenticated' });
+    return;
+  }
+
+  const userId = req.user.userId;
+  const cacheKey = `customer:${userId}:profile`;
+
+  const customerData = await cacheService.getOrSet(cacheKey, async () => {
     const customerRepository = AppDataSource.getRepository(Customer);
     const userRepository = AppDataSource.getRepository(User);
 
-    if (!req.user) {
-      res.status(401).json({ message: 'User not authenticated' });
-      return;
-    }
-
     const user = await userRepository.findOne({ 
-      where: { id: req.user.userId } 
+      where: { id: userId } 
     });
 
     if (!user) {
-      res.status(404).json({ message: 'User not found' });
-      return;
+      throw new Error('User not found');
     }
 
     const customer = await customerRepository.findOne({
@@ -29,26 +33,25 @@ export const getCustomerProfile = async (req: Request, res: Response): Promise<v
     });
 
     if (!customer) {
-      res.status(404).json({ message: 'Customer profile not found' });
-      return;
+      throw new Error('Customer profile not found');
     }
 
-    res.json({
+    return {
       id: customer.id,
       firstName: customer.firstName,
       lastName: customer.lastName,
       phone: customer.phone,
       address: customer.address,
+      dateOfBirth: customer.dateOfBirth,
       preferences: customer.preferences,
       email: user.email,
       createdAt: customer.createdAt,
       updatedAt: customer.updatedAt
-    });
-  } catch (error) {
-    console.error('Get customer profile error:', error);
-    res.status(500).json({ message: 'Error fetching customer profile' });
-  }
-};
+    };
+  }, 300); // 5 minutes cache
+
+  res.json(customerData);
+});
 
 // Update customer profile
 export const updateCustomerProfile = async (req: Request, res: Response): Promise<void> => {
@@ -78,17 +81,14 @@ export const updateCustomerProfile = async (req: Request, res: Response): Promis
     if (!customer) {
       res.status(404).json({ message: 'Customer profile not found' });
       return;
-    }
-
-    const { firstName, lastName, phone, address, email } = req.body;
+    }    const { firstName, lastName, phone, address, dateOfBirth, email } = req.body;
 
     // Update customer data
     if (firstName !== undefined) customer.firstName = firstName;
     if (lastName !== undefined) customer.lastName = lastName;
     if (phone !== undefined) customer.phone = phone;
     if (address !== undefined) customer.address = address;
-
-    await customerRepository.save(customer);
+    if (dateOfBirth !== undefined) customer.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : null;await customerRepository.save(customer);
 
     // Update user email if provided
     if (email && email !== user.email) {
@@ -99,9 +99,19 @@ export const updateCustomerProfile = async (req: Request, res: Response): Promis
       }
       user.email = email;
       await userRepository.save(user);
-    }
-
-    res.json({ message: 'Profile updated successfully' });
+    }    // Return updated profile data
+    res.json({
+      id: customer.id,
+      firstName: customer.firstName,
+      lastName: customer.lastName,
+      phone: customer.phone,
+      address: customer.address,
+      dateOfBirth: customer.dateOfBirth,
+      preferences: customer.preferences,
+      email: user.email,
+      createdAt: customer.createdAt,
+      updatedAt: customer.updatedAt
+    });
   } catch (error) {
     console.error('Update customer profile error:', error);
     res.status(500).json({ message: 'Error updating profile' });

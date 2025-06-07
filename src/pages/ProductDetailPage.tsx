@@ -56,13 +56,12 @@ const ProductDetailPage = () => {
       setLoading(false);
     }
   };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header 
-          cartItemsCount={0}
-          onCartClick={() => {}}
+          cartItemsCount={cartItemsCount}
+          onCartClick={() => navigate('/products')}
           onSearch={() => {}}
         />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -73,13 +72,12 @@ const ProductDetailPage = () => {
         </div>
       </div>
     );
-  }
-  if (error || !product) {
+  }  if (error || !product) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header 
-          cartItemsCount={0}
-          onCartClick={() => {}}
+          cartItemsCount={cartItemsCount}
+          onCartClick={() => navigate('/products')}
           onSearch={() => {}}
         />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -123,10 +121,9 @@ const ProductDetailPage = () => {
     alert(`${quantity} x ${product.name} ajouté au panier !`);
   };
 
-  return (    <div className="min-h-screen bg-gray-50">
-      <Header 
+  return (    <div className="min-h-screen bg-gray-50">      <Header 
         cartItemsCount={cartItemsCount}
-        onCartClick={() => {}}
+        onCartClick={() => navigate('/products')}
         onSearch={() => {}}
       />
       

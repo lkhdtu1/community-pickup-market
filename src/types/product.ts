@@ -41,3 +41,15 @@ export interface Producer {
   image: string;
   location: string;
 }
+
+// Pickup Point interface
+export interface PickupPoint {
+  id: number;
+  name: string;
+  address: string;
+  schedule: string;
+  nextAvailable: string;
+  coordinates: [number, number];
+  type: 'market' | 'farm' | 'shop';
+  distance?: string;
+}

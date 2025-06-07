@@ -5,6 +5,8 @@ import { Customer } from './models/Customer';
 import { Product } from './models/Product';
 import { Shop } from './models/Shop';
 import { Order, OrderItem } from './models/Order';
+import { PaymentMethod } from './models/PaymentMethod';
+import { Address } from './models/Address';
 
 // Database configuration
 export const AppDataSource = new DataSource({
@@ -16,7 +18,7 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_NAME || 'community_market',
   synchronize: true,
   logging: true,
-  entities: [User, Producer, Customer, Product, Shop, Order, OrderItem],
+  entities: [User, Producer, Customer, Product, Shop, Order, OrderItem, PaymentMethod, Address],
   subscribers: [],
   migrations: [],
 });
