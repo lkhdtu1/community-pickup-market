@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { productsAPI, shopsAPI } from '@/lib/api';
+import PhotoUpload from './PhotoUpload';
 
 interface Product {
   id: string;
@@ -39,15 +40,15 @@ const ProductManagement = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [newProduct, setNewProduct] = useState({
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);  const [newProduct, setNewProduct] = useState({
     name: '',
     price: '',
     stock: '',
     category: 'Légumes',
     description: '',
     unit: 'kg',
-    shopId: ''
+    shopId: '',
+    images: [] as string[]
   });
 
   // Load products and shops on component mount
@@ -97,20 +98,20 @@ const ProductManagement = () => {
         stock: parseInt(newProduct.stock),
         category: newProduct.category,
         unit: newProduct.unit,
-        images: ['/placeholder.svg'],
+        images: newProduct.images.length > 0 ? newProduct.images : ['/placeholder.svg'],
         shopId: newProduct.shopId
       };
       
       const createdProduct = await productsAPI.create(productData);
-      setProducts([...products, createdProduct]);
-      setNewProduct({ 
+      setProducts([...products, createdProduct]);      setNewProduct({ 
         name: '', 
         price: '', 
         stock: '', 
         category: 'Légumes', 
         description: '', 
         unit: 'kg',
-        shopId: shops.length > 0 ? shops[0].id : ''
+        shopId: shops.length > 0 ? shops[0].id : '',
+        images: []
       });
       setIsAddingProduct(false);
     } catch (err) {
@@ -292,8 +293,7 @@ const ProductManagement = () => {
                     <option key={shop.id} value={shop.id}>{shop.name}</option>
                   ))}
                 </select>
-              </div>
-              <div className="md:col-span-2">
+              </div>              <div className="md:col-span-2">
                 <label className="block text-sm font-medium mb-1">Description</label>
                 <textarea
                   value={newProduct.description}
@@ -301,6 +301,14 @@ const ProductManagement = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
                   rows={3}
                   placeholder="Description du produit..."
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium mb-2">Photos du produit</label>
+                <PhotoUpload
+                  images={newProduct.images}
+                  onImagesChange={(images) => setNewProduct(prev => ({ ...prev, images }))}
+                  maxImages={5}
                 />
               </div>
               <div className="md:col-span-2 flex space-x-4">
@@ -364,8 +372,7 @@ const ProductManagement = () => {
                   <option value="pot">pot</option>
                   <option value="litre">litre</option>
                 </select>
-              </div>
-              <div>
+              </div>              <div>
                 <label className="block text-sm font-medium mb-1">Catégorie</label>
                 <select
                   value={editingProduct.category}
@@ -378,6 +385,24 @@ const ProductManagement = () => {
                   <option value="Boulangerie">Boulangerie</option>
                   <option value="Fromagerie">Fromagerie</option>
                 </select>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium mb-1">Description</label>
+                <textarea
+                  value={editingProduct.description || ''}
+                  onChange={(e) => setEditingProduct(prev => prev ? { ...prev, description: e.target.value } : null)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  rows={3}
+                  placeholder="Description du produit..."
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium mb-2">Photos du produit</label>
+                <PhotoUpload
+                  images={editingProduct.images || []}
+                  onImagesChange={(images) => setEditingProduct(prev => prev ? { ...prev, images } : null)}
+                  maxImages={5}
+                />
               </div>
               <div className="md:col-span-2 flex space-x-4">
                 <Button type="submit" className="bg-green-600 hover:bg-green-700">

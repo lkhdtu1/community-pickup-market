@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { shopsAPI } from '@/lib/api';
+import PhotoUpload from './PhotoUpload';
 
 interface Shop {
   id: string;
@@ -13,6 +14,7 @@ interface Shop {
   phone: string;
   email: string;
   specialties: string[];
+  images?: string[];
   isActive: boolean;
   createdAt: string;
 }
@@ -21,14 +23,14 @@ const ShopManagement = () => {
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [editingShop, setEditingShop] = useState<Shop | null>(null);
-  const [formData, setFormData] = useState({
+  const [editingShop, setEditingShop] = useState<Shop | null>(null);  const [formData, setFormData] = useState({
     name: '',
     description: '',
     address: '',
     phone: '',
     email: '',
-    specialties: ''
+    specialties: '',
+    images: [] as string[]
   });
 
   useEffect(() => {
@@ -52,7 +54,8 @@ const ShopManagement = () => {
         address: formData.address,
         phone: formData.phone,
         email: formData.email,
-        specialties: formData.specialties.split(',').map(s => s.trim())
+        specialties: formData.specialties.split(',').map(s => s.trim()),
+        images: formData.images
       };
       
       const newShop = await shopsAPI.create(shopData);
@@ -73,7 +76,8 @@ const ShopManagement = () => {
         address: formData.address,
         phone: formData.phone,
         email: formData.email,
-        specialties: formData.specialties.split(',').map(s => s.trim())
+        specialties: formData.specialties.split(',').map(s => s.trim()),
+        images: formData.images
       };
       
       const updatedShop = await shopsAPI.update(editingShop.id, shopData);
@@ -86,7 +90,7 @@ const ShopManagement = () => {
       console.error('Error updating shop:', error);
       alert('Erreur lors de la mise à jour de la boutique: ' + (error.message || 'Erreur inconnue'));
     }
-  };  const handleDeleteShop = async (shopId: string) => {
+  };const handleDeleteShop = async (shopId: string) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette boutique ?')) return;
     
     try {
@@ -97,7 +101,6 @@ const ShopManagement = () => {
       alert('Erreur lors de la suppression de la boutique: ' + (error.message || 'Erreur inconnue'));
     }
   };
-
   const startEdit = (shop: Shop) => {
     setEditingShop(shop);
     setFormData({
@@ -106,10 +109,10 @@ const ShopManagement = () => {
       address: shop.address,
       phone: shop.phone,
       email: shop.email,
-      specialties: shop.specialties.join(', ')
+      specialties: shop.specialties.join(', '),
+      images: shop.images || []
     });
   };
-
   const resetForm = () => {
     setFormData({
       name: '',
@@ -117,7 +120,8 @@ const ShopManagement = () => {
       address: '',
       phone: '',
       email: '',
-      specialties: ''
+      specialties: '',
+      images: []
     });
   };
 
@@ -209,14 +213,21 @@ const ShopManagement = () => {
                   placeholder="04 42 12 34 56"
                 />
               </div>
-            </div>
-
-            <div>
+            </div>            <div>
               <label className="block text-sm font-medium mb-1">Spécialités</label>
               <Input
                 value={formData.specialties}
                 onChange={(e) => setFormData(prev => ({ ...prev, specialties: e.target.value }))}
                 placeholder="Légumes bio, Fruits de saison, Miel..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Photos de la boutique</label>
+              <PhotoUpload
+                images={formData.images}
+                onImagesChange={(images) => setFormData(prev => ({ ...prev, images }))}
+                maxImages={5}
               />
             </div>
 
@@ -271,8 +282,18 @@ const ShopManagement = () => {
                   </Button>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
+            </CardHeader>            <CardContent className="space-y-3">
+              {/* Shop Image */}
+              {shop.images && shop.images.length > 0 && (
+                <div className="w-full h-32 rounded-lg overflow-hidden">
+                  <img
+                    src={shop.images[0]}
+                    alt={shop.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+              
               <p className="text-sm text-gray-600">{shop.description}</p>
               
               <div className="space-y-2">
