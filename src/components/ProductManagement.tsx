@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { productsAPI } from '@/lib/api';
+import { productsAPI, shopsAPI } from '@/lib/api';
 
 interface Product {
   id: string;
@@ -17,10 +17,25 @@ interface Product {
   description?: string;
   unit: string;
   isActive: boolean;
+  shopId?: string;
+  shopName?: string;
+}
+
+interface Shop {
+  id: string;
+  name: string;
+  description: string;
+  address: string;
+  phone: string;
+  email: string;
+  specialties: string[];
+  isActive: boolean;
+  createdAt: string;
 }
 
 const ProductManagement = () => {
   const [products, setProducts] = useState<Product[]>([]);
+  const [shops, setShops] = useState<Shop[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
@@ -31,12 +46,13 @@ const ProductManagement = () => {
     stock: '',
     category: 'Légumes',
     description: '',
-    unit: 'kg'
+    unit: 'kg',
+    shopId: ''
   });
 
-  // Load products on component mount
+  // Load products and shops on component mount
   useEffect(() => {
-    loadProducts();
+    Promise.all([loadProducts(), loadShops()]);
   }, []);
 
   const loadProducts = async () => {
@@ -51,10 +67,28 @@ const ProductManagement = () => {
       setIsLoading(false);
     }
   };
+  const loadShops = async () => {
+    try {
+      const shopsData = await shopsAPI.getMyShops();
+      setShops(shopsData);
+      // Set default shop if available
+      if (shopsData.length > 0 && !newProduct.shopId) {
+        setNewProduct(prev => ({ ...prev, shopId: shopsData[0].id }));
+      }
+    } catch (error) {
+      console.error('Error loading shops:', error);
+      setShops([]);
+    }
+  };
 
-  const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
-  const handleAddProduct = async (e: React.FormEvent) => {
+  const [viewingProduct, setViewingProduct] = useState<Product | null>(null);  const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!newProduct.shopId) {
+      setError('Veuillez sélectionner une boutique');
+      return;
+    }
+    
     try {
       const productData = {
         name: newProduct.name,
@@ -64,12 +98,20 @@ const ProductManagement = () => {
         category: newProduct.category,
         unit: newProduct.unit,
         images: ['/placeholder.svg'],
-        isActive: true
+        shopId: newProduct.shopId
       };
       
       const createdProduct = await productsAPI.create(productData);
       setProducts([...products, createdProduct]);
-      setNewProduct({ name: '', price: '', stock: '', category: 'Légumes', description: '', unit: 'kg' });
+      setNewProduct({ 
+        name: '', 
+        price: '', 
+        stock: '', 
+        category: 'Légumes', 
+        description: '', 
+        unit: 'kg',
+        shopId: shops.length > 0 ? shops[0].id : ''
+      });
       setIsAddingProduct(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create product');
@@ -223,8 +265,7 @@ const ProductManagement = () => {
                   <option value="pot">pot</option>
                   <option value="litre">litre</option>
                 </select>
-              </div>
-              <div>
+              </div>              <div>
                 <label className="block text-sm font-medium mb-1">Catégorie</label>
                 <select
                   value={newProduct.category}
@@ -237,6 +278,30 @@ const ProductManagement = () => {
                   <option value="Boulangerie">Boulangerie</option>
                   <option value="Fromagerie">Fromagerie</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Boutique</label>
+                <select
+                  value={newProduct.shopId}
+                  onChange={(e) => setNewProduct(prev => ({ ...prev, shopId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  required
+                >
+                  <option value="">Sélectionner une boutique</option>
+                  {shops.map(shop => (
+                    <option key={shop.id} value={shop.id}>{shop.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium mb-1">Description</label>
+                <textarea
+                  value={newProduct.description}
+                  onChange={(e) => setNewProduct(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  rows={3}
+                  placeholder="Description du produit..."
+                />
               </div>
               <div className="md:col-span-2 flex space-x-4">
                 <Button type="submit" className="bg-green-600 hover:bg-green-700">
@@ -335,12 +400,14 @@ const ProductManagement = () => {
                 src={product.images?.[0] || '/placeholder.svg'}
                 alt={product.name}
                 className="w-full h-32 object-cover rounded-lg mb-3"
-              />
-              <div className="flex justify-between items-start mb-2">
+              />              <div className="flex justify-between items-start mb-2">
                 <h3 className="font-semibold text-lg">{product.name}</h3>
                 {getStatusBadge(product.status)}
               </div>
               <p className="text-gray-600 mb-1">Catégorie: {product.category}</p>
+              {product.shopName && (
+                <p className="text-blue-600 mb-1">Boutique: {product.shopName}</p>
+              )}
               <p className="text-green-600 font-bold text-lg mb-1">{product.price.toFixed(2)} €/{product.unit}</p>
               <p className={`mb-3 ${product.stock === 0 ? 'text-red-600' : 'text-gray-600'}`}>
                 Stock: {product.stock} {product.unit}s

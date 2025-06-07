@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { AppDataSource } from '../index';
+import { AppDataSource } from '../database';
 import { User, UserRole } from '../models/User';
 import { Producer } from '../models/Producer';
 import { Customer } from '../models/Customer';
@@ -36,17 +36,11 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     await user.hashPassword();
 
     // Save user
-    await userRepository.save(user);
-
-    // Create specific profile based on role
+    await userRepository.save(user);    // Create specific profile based on role
     if (role === UserRole.PRODUCER) {
       const producer = new Producer();
       producer.user = user;
-      producer.shopName = profileData.shopName;
-      producer.description = profileData.description;
-      producer.address = profileData.address;
-      producer.certifications = profileData.certifications;
-      producer.pickupInfo = profileData.pickupInfo;
+      // Note: Shop details will be created separately via shop management
       await producerRepository.save(producer);
     } else {
       const customer = new Customer();

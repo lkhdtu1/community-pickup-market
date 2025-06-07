@@ -81,7 +81,6 @@ export const productsAPI = {
     });
     return handleResponse(response);
   },
-
   create: async (productData: {
     name: string;
     description: string;
@@ -90,6 +89,7 @@ export const productsAPI = {
     category: string;
     unit: string;
     images?: string[];
+    shopId: string;
   }) => {
     const response = await fetch(`${API_BASE_URL}/products`, {
       method: 'POST',
@@ -300,11 +300,87 @@ export const ordersAPI = {
   }
 };
 
+// Shops API calls
+export const shopsAPI = {
+  getMyShops: async () => {
+    const response = await fetch(`${API_BASE_URL}/shops/my-shops`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  getAll: async () => {
+    const response = await fetch(`${API_BASE_URL}/shops`);
+    return handleResponse(response);
+  },
+
+  getById: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/shops/${id}`);
+    return handleResponse(response);
+  },
+
+  create: async (shopData: {
+    name: string;
+    description: string;
+    address: string;
+    phone: string;
+    email: string;
+    specialties: string[];
+    images?: string[];
+    certifications?: string[];
+    pickupInfo?: {
+      location: string;
+      hours: string;
+      instructions: string;
+    };
+  }) => {
+    const response = await fetch(`${API_BASE_URL}/shops`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(shopData)
+    });
+    return handleResponse(response);
+  },
+
+  update: async (id: string, shopData: Partial<{
+    name: string;
+    description: string;
+    address: string;
+    phone: string;
+    email: string;
+    specialties: string[];
+    images: string[];
+    certifications: string[];
+    pickupInfo: {
+      location: string;
+      hours: string;
+      instructions: string;
+    };
+    isActive: boolean;
+  }>) => {
+    const response = await fetch(`${API_BASE_URL}/shops/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(shopData)
+    });
+    return handleResponse(response);
+  },
+
+  delete: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/shops/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  }
+};
+
 // Unified API export for easier importing
 export const api = {
   auth: authAPI,
   products: productsAPI,
   producers: producersAPI,
   customers: customerAPI,
-  orders: ordersAPI
+  orders: ordersAPI,
+  shops: shopsAPI
 };

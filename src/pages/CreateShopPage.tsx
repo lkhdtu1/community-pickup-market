@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
 import { Store, MapPin, Phone, Mail, ImagePlus } from 'lucide-react';
-import { producersAPI } from '../lib/api';
+import { shopsAPI } from '../lib/api';
 
 interface ShopFormData {
   shopName: string;
@@ -36,13 +36,29 @@ const CreateShopPage = () => {
       specialties: ''
     }
   });
-
   const onSubmit = async (data: ShopFormData) => {
     setIsSubmitting(true);
     setError(null);
     
     try {
-      await producersAPI.create(data);
+      // Transform form data to match API expectations
+      const shopData = {
+        name: data.shopName,
+        description: data.description,
+        address: data.address,
+        phone: data.phone,
+        email: data.email,
+        specialties: data.specialties.split(',').map(s => s.trim()).filter(s => s),
+        images: [],
+        certifications: [],
+        pickupInfo: {
+          location: data.address,
+          hours: 'Lun-Ven: 9h-18h',
+          instructions: 'Contactez-nous pour organiser la récupération'
+        }
+      };
+
+      await shopsAPI.create(shopData);
       // Navigate to provider account page after creation
       navigate('/account/provider');
     } catch (err) {

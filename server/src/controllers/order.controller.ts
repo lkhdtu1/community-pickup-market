@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { AppDataSource } from '../index';
+import { AppDataSource } from '../database';
 import { Order, OrderItem, OrderStatus } from '../models/Order';
 import { Customer } from '../models/Customer';
 import { Producer } from '../models/Producer';
@@ -134,7 +134,7 @@ export const getCustomerOrders = async (req: Request, res: Response): Promise<vo
       
     console.log('Debug: Found orders for customer:', orders.length);    const formattedOrders = orders.map(order => ({
       id: order.id,
-      producerName: order.producer?.shopName || 'Unknown Producer',      items: order.items?.map(item => ({
+      producerName: order.producer?.shops?.[0]?.name || 'Unknown Producer',      items: order.items?.map(item => ({
         name: item.productName,
         quantity: item.quantity,
         unitPrice: parseFloat(item.unitPrice.toString()),
@@ -190,10 +190,9 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     if (!producerId || !items || !Array.isArray(items) || items.length === 0) {
       res.status(400).json({ message: 'Producer ID and items are required' });
       return;
-    }
-
-    const producer = await producerRepository.findOne({
-      where: { id: producerId }
+    }    const producer = await producerRepository.findOne({
+      where: { id: producerId },
+      relations: ['shops']
     });
 
     if (!producer) {
@@ -203,18 +202,15 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     let total = 0;
     const validatedItems = [];
 
-    for (const item of items) {
-      const product = await productRepository.findOne({
+    for (const item of items) {      const product = await productRepository.findOne({
         where: { id: item.productId },
-        relations: ['producer']
+        relations: ['shop', 'shop.producer']
       });
 
       if (!product) {
         res.status(404).json({ message: `Product ${item.productId} not found` });
         return;
-      }
-
-      if (product.producer.id !== producerId) {
+      }      if (product.shop.producer.id !== producerId) {
         res.status(400).json({ message: 'All products must belong to the same producer' });
         return;
       }
@@ -234,11 +230,11 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     order.customer = customer;
     order.producer = producer;
     order.total = total;
-    order.status = OrderStatus.PENDING;
-    if (pickupDate) {
+    order.status = OrderStatus.PENDING;    if (pickupDate) {
       order.pickupDate = new Date(pickupDate);
     }
-    order.pickupPoint = pickupPoint || producer.pickupInfo?.location || 'À définir';
+    // Get pickup info from producer's first shop (fallback logic)
+    order.pickupPoint = pickupPoint || producer.shops?.[0]?.pickupInfo?.location || 'À définir';
     order.notes = notes;
 
     const savedOrder = await orderRepository.save(order);    // Create order items
@@ -253,14 +249,12 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       return orderItem;
     });
 
-    await orderItemRepository.save(orderItems);
-
-    res.status(201).json({
+    await orderItemRepository.save(orderItems);    res.status(201).json({
       id: savedOrder.id,
       message: 'Order created successfully',
       order: {
         id: savedOrder.id,
-        producerName: producer.shopName,
+        producerName: producer.shops?.[0]?.name || 'Producer',
         total: savedOrder.total,
         status: savedOrder.status,
         pickupPoint: savedOrder.pickupPoint,

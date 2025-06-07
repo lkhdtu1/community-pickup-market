@@ -1,17 +1,13 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { DataSource } from 'typeorm';
+import { AppDataSource } from './database';
 import authRoutes from './routes/auth.routes';
 import productRoutes from './routes/product.routes';
 import producerRoutes from './routes/producer.routes';
 import orderRoutes from './routes/order.routes';
 import userRoutes from './routes/user.routes';
-import { User } from './models/User';
-import { Producer } from './models/Producer';
-import { Customer } from './models/Customer';
-import { Product } from './models/Product';
-import { Order, OrderItem } from './models/Order';
+import shopRoutes from './routes/shop.routes';
 
 // Load environment variables
 dotenv.config();
@@ -28,21 +24,6 @@ app.use(cors({
 // Middleware
 app.use(express.json());
 
-// Database configuration
-export const AppDataSource = new DataSource({
-  type: 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  username: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
-  database: process.env.DB_NAME || 'community_market',
-  synchronize: true,
-  logging: true,
-  entities: [User, Producer, Customer, Product, Order, OrderItem],
-  subscribers: [],
-  migrations: [],
-});
-
 // Initialize database connection
 AppDataSource.initialize()
   .then(() => {
@@ -56,6 +37,7 @@ AppDataSource.initialize()
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/producers', producerRoutes);
+app.use('/api/shops', shopRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/users', userRoutes);
 

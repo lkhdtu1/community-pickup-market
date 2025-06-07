@@ -1,31 +1,91 @@
 import React, { useState, useEffect } from 'react';
 import { User, Package, BarChart3, Settings, LogOut, Store, ShoppingCart, TrendingUp } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { logout } from '@/lib/auth';
+import { logout, getCurrentUser } from '@/lib/auth';
 import { api } from '@/lib/api';
 import ProductManagement from './ProductManagement';
 import OrderManagement from './OrderManagement';
 import ProducerAnalytics from './ProducerAnalytics';
 import ProducerProfile from './ProducerProfile';
+import ShopManagement from './ShopManagement';
 
 const ProviderAccount = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [hasShop, setHasShop] = useState(true); // Changé à true pour montrer l'interface complète
+  const [recentOrders, setRecentOrders] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [hasShop, setHasShop] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (activeTab === 'dashboard') {
+    checkUserShopStatus();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'dashboard' && hasShop) {
       loadDashboardData();
     }
-  }, [activeTab]);
+  }, [activeTab, hasShop]);
+
+  const checkUserShopStatus = async () => {
+    try {
+      const user = getCurrentUser();
+      // For now, we'll assume the user has a shop if they have profile data
+      // In the future, this should check if the user has created a shop through the backend
+      setHasShop(user?.profile?.shopName ? true : false);
+      
+      // Simulate checking shop status - for demo purposes, set to true
+      // TODO: Replace with real API call to check if producer has created a shop
+      setTimeout(() => {
+        setHasShop(true); // Allow access to dashboard for demo
+        setLoading(false);
+      }, 500);
+    } catch (error) {
+      console.error('Error checking shop status:', error);
+      setLoading(false);
+    }
+  };
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const data = await api.orders.getStats();
-      setAnalytics(data);
+      
+      // Since backend doesn't have orders endpoints yet, use mock data
+      // TODO: Replace with real API calls once backend is implemented
+      const mockAnalytics = {
+        totalRevenue: 1247.50,
+        totalOrders: 23,
+        activeProducts: 12,
+        customerCount: 18,
+        revenueGrowth: 12.5,
+        ordersGrowth: 5.2,
+        averageOrderValue: 54.22
+      };
+      
+      const mockRecentOrders = [
+        {
+          id: '001',
+          customerName: 'Marie Dupont',
+          items: '2x Tomates bio, 1x Miel de lavande',
+          total: 21.00,
+          status: 'En attente',
+          date: new Date().toISOString()
+        },
+        {
+          id: '002',
+          customerName: 'Jean Martin',
+          items: '1x Tomates bio',
+          total: 4.50,
+          status: 'Prête',
+          date: new Date(Date.now() - 86400000).toISOString()
+        }
+      ];
+      
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      setAnalytics(mockAnalytics);
+      setRecentOrders(mockRecentOrders);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -37,18 +97,18 @@ const ProviderAccount = () => {
     logout();
     navigate('/');
   };
-
   const tabs = [
     { id: 'dashboard', label: 'Tableau de bord', icon: BarChart3 },
+    { id: 'shops', label: 'Mes boutiques', icon: Store },
     { id: 'products', label: 'Mes produits', icon: Package },
     { id: 'orders', label: 'Commandes', icon: ShoppingCart },
     { id: 'analytics', label: 'Analytiques', icon: TrendingUp },
-    { id: 'profile', label: 'Profil boutique', icon: Store },
+    { id: 'profile', label: 'Profil boutique', icon: User },
     { id: 'settings', label: 'Paramètres', icon: Settings },
   ];
 
-  // If no shop exists, show shop creation prompt
-  if (!hasShop) {
+  // Show shop creation page if user doesn't have a shop
+  if (!hasShop && !loading) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-white rounded-xl shadow-sm p-8 text-center">
@@ -85,24 +145,35 @@ const ProviderAccount = () => {
             </div>
           </div>
 
-          <Link
-            to="/create-shop"
-            className="inline-flex items-center space-x-2 bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium"
-          >
-            <Store size={20} />
-            <span>Créer ma boutique</span>
-          </Link>
+          <div className="space-y-4">
+            <Link
+              to="/create-shop"
+              className="inline-flex items-center space-x-2 bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium"
+            >
+              <Store size={20} />
+              <span>Créer ma boutique</span>
+            </Link>
+            
+            <div className="mt-4">
+              <button
+                onClick={() => setHasShop(true)}
+                className="text-sm text-green-600 hover:text-green-700 underline"
+              >
+                J'ai déjà une boutique (Demo)
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
-
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="bg-white rounded-xl shadow-sm">
         <div className="border-b border-gray-200">
           <div className="flex items-center justify-between p-6">
-            <h1 className="text-2xl font-bold text-gray-900">Espace Producteur</h1>            <button 
+            <h1 className="text-2xl font-bold text-gray-900">Espace Producteur</h1>
+            <button 
               onClick={handleLogout}
               className="flex items-center space-x-2 text-red-600 hover:text-red-700 transition-colors"
             >
@@ -129,7 +200,8 @@ const ProviderAccount = () => {
           </nav>
         </div>
 
-        <div className="p-6">          {activeTab === 'dashboard' && (
+        <div className="p-6">
+          {activeTab === 'dashboard' && (
             <div>
               <h2 className="text-xl font-semibold mb-6">Tableau de bord</h2>
               {loading ? (
@@ -180,34 +252,36 @@ const ProviderAccount = () => {
               <div className="bg-gray-50 p-6 rounded-lg mb-6">
                 <h3 className="text-lg font-semibold mb-4">Commandes récentes</h3>
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center bg-white p-4 rounded-lg">
-                    <div>
-                      <span className="font-medium">Commande #001 - Marie Dupont</span>
-                      <p className="text-sm text-gray-600">2x Tomates bio, 1x Miel de lavande</p>
+                  {recentOrders.map((order) => (
+                    <div key={order.id} className="flex justify-between items-center bg-white p-4 rounded-lg">
+                      <div>
+                        <span className="font-medium">Commande #{order.id} - {order.customerName}</span>
+                        <p className="text-sm text-gray-600">{order.items}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-green-600 font-medium">{order.total.toFixed(2)} €</span>
+                        <p className={`text-sm ${
+                          order.status === 'En attente' ? 'text-yellow-600' : 
+                          order.status === 'Prête' ? 'text-green-600' : 'text-blue-600'
+                        }`}>
+                          {order.status}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <span className="text-green-600 font-medium">21,00 €</span>
-                      <p className="text-sm text-yellow-600">En attente</p>
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center bg-white p-4 rounded-lg">
-                    <div>
-                      <span className="font-medium">Commande #002 - Jean Martin</span>
-                      <p className="text-sm text-gray-600">1x Tomates bio</p>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-green-600 font-medium">4,50 €</span>
-                      <p className="text-sm text-green-600">Prête</p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              </div>
-
-              {/* Actions rapides */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              </div>              {/* Actions rapides */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <button 
+                  onClick={() => setActiveTab('shops')}
+                  className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors"
+                >
+                  <Store className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                  <p className="font-medium">Gérer mes boutiques</p>
+                </button>
                 <button 
                   onClick={() => setActiveTab('products')}
-                  className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors"
+                  className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-orange-500 hover:bg-orange-50 transition-colors"
                 >
                   <Package className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                   <p className="font-medium">Ajouter un produit</p>
@@ -228,8 +302,7 @@ const ProviderAccount = () => {
                 </button>
               </div>
             </div>
-          )}
-
+          )}          {activeTab === 'shops' && <ShopManagement />}
           {activeTab === 'products' && <ProductManagement />}
           {activeTab === 'orders' && <OrderManagement />}
           {activeTab === 'analytics' && <ProducerAnalytics />}

@@ -4,7 +4,6 @@ import { Package, Clock, CheckCircle, XCircle, Eye, MapPin } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { api } from '@/lib/api';
 
 interface Order {
   id: number;
@@ -35,8 +34,82 @@ const OrderManagement = () => {
   const loadOrders = async () => {
     try {
       setLoading(true);
-      const data = await api.orders.getProducerOrders();
-      setOrders(data);
+      
+      // Mock data instead of API call since backend doesn't have order endpoints yet
+      const mockOrders: Order[] = [
+        {
+          id: 1,
+          customerName: 'Marie Dupont',
+          customerEmail: 'marie.dupont@email.com',
+          items: [
+            { id: 1, productName: 'Tomates bio', quantity: 2, price: 4.50 },
+            { id: 2, productName: 'Miel de lavande', quantity: 1, price: 12.00 }
+          ],
+          total: 21.00,
+          status: 'pending',
+          createdAt: '2024-01-15T10:30:00Z',
+          pickupDate: '2024-01-16T16:00:00Z',
+          pickupPoint: 'Marché de Provence'
+        },
+        {
+          id: 2,
+          customerName: 'Jean Martin',
+          customerEmail: 'jean.martin@email.com',
+          items: [
+            { id: 3, productName: 'Pommes Bio Gala', quantity: 3, price: 3.50 },
+            { id: 4, productName: 'Carottes du Potager', quantity: 2, price: 2.80 }
+          ],
+          total: 16.10,
+          status: 'confirmed',
+          createdAt: '2024-01-14T14:20:00Z',
+          pickupDate: '2024-01-15T18:00:00Z',
+          pickupPoint: 'Épicerie Bio du Quartier'
+        },
+        {
+          id: 3,
+          customerName: 'Sophie Leclerc',
+          customerEmail: 'sophie.leclerc@email.com',
+          items: [
+            { id: 5, productName: 'Œufs Fermiers', quantity: 2, price: 4.20 },
+            { id: 6, productName: 'Pain de Campagne', quantity: 1, price: 3.80 }
+          ],
+          total: 12.20,
+          status: 'ready',
+          createdAt: '2024-01-13T09:15:00Z',
+          pickupDate: '2024-01-14T12:00:00Z',
+          pickupPoint: 'Ferme du Soleil'
+        },
+        {
+          id: 4,
+          customerName: 'Pierre Bernard',
+          customerEmail: 'pierre.bernard@email.com',
+          items: [
+            { id: 7, productName: 'Salade de saison', quantity: 1, price: 2.50 }
+          ],
+          total: 2.50,
+          status: 'completed',
+          createdAt: '2024-01-12T16:45:00Z',
+          pickupDate: '2024-01-13T10:00:00Z',
+          pickupPoint: 'Marché Saint-Germain'
+        },
+        {
+          id: 5,
+          customerName: 'Emma Rousseau',
+          customerEmail: 'emma.rousseau@email.com',
+          items: [
+            { id: 8, productName: 'Tomates Cerises', quantity: 2, price: 5.20 }
+          ],
+          total: 10.40,
+          status: 'cancelled',
+          createdAt: '2024-01-11T11:30:00Z',
+          pickupPoint: 'Serre des Délices'
+        }
+      ];
+      
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      setOrders(mockOrders);
       setError(null);
     } catch (err) {
       console.error('Error loading orders:', err);
@@ -68,16 +141,18 @@ const OrderManagement = () => {
       default: return <Clock className="text-gray-600" size={20} />;
     }
   };
-
   const updateOrderStatus = async (orderId: number, newStatus: Order['status']) => {
     try {
-      await api.orders.updateOrderStatus(orderId, newStatus);
+      // Mock API call since backend doesn't have order status update endpoint yet
+      // TODO: Replace with real API call once backend is implemented
+      await new Promise(resolve => setTimeout(resolve, 300)); // Simulate API delay
+      
       setOrders(orders.map(order => 
         order.id === orderId ? { ...order, status: newStatus } : order
       ));
     } catch (err) {
       console.error('Error updating order status:', err);
-      // TODO: Show error message to user
+      setError('Erreur lors de la mise à jour du statut de la commande');
     }
   };
   const orderStats = {

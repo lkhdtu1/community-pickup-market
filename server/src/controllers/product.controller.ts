@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
-import { AppDataSource } from '../index';
+import { AppDataSource } from '../database';
 import { Product } from '../models/Product';
 import { Producer } from '../models/Producer';
+import { Shop } from '../models/Shop';
 
 // Get all products (for customers)
 export const getAllProducts = async (req: Request, res: Response): Promise<void> => {
@@ -9,16 +10,10 @@ export const getAllProducts = async (req: Request, res: Response): Promise<void>
     const productRepository = AppDataSource.getRepository(Product);
     const { category, producer, search } = req.query;
 
-    // Build query conditions
-    const whereConditions: any = { isAvailable: true };
-    
-    if (category) {
-      whereConditions.category = category;
-    }
-
-    // Get products with producer information
+    // Get products with shop and producer information
     const queryBuilder = productRepository.createQueryBuilder('product')
-      .leftJoinAndSelect('product.producer', 'producer')
+      .leftJoinAndSelect('product.shop', 'shop')
+      .leftJoinAndSelect('shop.producer', 'producer')
       .leftJoinAndSelect('producer.user', 'user')
       .where('product.isAvailable = :isAvailable', { isAvailable: true });
 
@@ -27,12 +22,12 @@ export const getAllProducts = async (req: Request, res: Response): Promise<void>
     }
 
     if (producer) {
-      queryBuilder.andWhere('producer.shopName ILIKE :producer', { producer: `%${producer}%` });
+      queryBuilder.andWhere('shop.name ILIKE :producer', { producer: `%${producer}%` });
     }
 
     if (search) {
       queryBuilder.andWhere(
-        '(product.name ILIKE :search OR product.description ILIKE :search OR producer.shopName ILIKE :search)',
+        '(product.name ILIKE :search OR product.description ILIKE :search OR shop.name ILIKE :search)',
         { search: `%${search}%` }
       );
     }
@@ -51,8 +46,9 @@ export const getAllProducts = async (req: Request, res: Response): Promise<void>
       description: product.description,
       image: product.images?.[0] || '/placeholder.svg',
       images: product.images || [],
-      producer: product.producer.shopName,
-      producerId: product.producer.id,
+      producer: product.shop.name,
+      producerId: product.shop.producer.id,
+      shopId: product.shop.id,
       stock: product.stock,
       isAvailable: product.isAvailable
     }));
@@ -79,7 +75,7 @@ export const getProducerProducts = async (req: Request, res: Response): Promise<
     // Find producer by user ID
     const producer = await producerRepository.findOne({
       where: { user: { id: userId } },
-      relations: ['user']
+      relations: ['user', 'shops']
     });
 
     if (!producer) {
@@ -87,12 +83,21 @@ export const getProducerProducts = async (req: Request, res: Response): Promise<
       return;
     }
 
-    // Get all products for this producer
-    const products = await productRepository.find({
-      where: { producer: { id: producer.id } },
-      relations: ['producer'],
-      order: { createdAt: 'DESC' }
-    });
+    // Get shop IDs for this producer
+    const shopIds = producer.shops.map(shop => shop.id);
+
+    if (shopIds.length === 0) {
+      res.json([]);
+      return;
+    }
+
+    // Get all products for this producer's shops
+    const queryBuilder = productRepository.createQueryBuilder('product')
+      .leftJoinAndSelect('product.shop', 'shop')
+      .where('shop.id IN (:...shopIds)', { shopIds })
+      .orderBy('product.createdAt', 'DESC');
+
+    const products = await queryBuilder.getMany();
 
     // Format products for frontend
     const formattedProducts = products.map(product => ({
@@ -107,6 +112,8 @@ export const getProducerProducts = async (req: Request, res: Response): Promise<
       description: product.description,
       unit: product.unit,
       isAvailable: product.isAvailable,
+      shopId: product.shop.id,
+      shopName: product.shop.name,
       createdAt: product.createdAt,
       updatedAt: product.updatedAt
     }));
@@ -122,6 +129,7 @@ export const getProducerProducts = async (req: Request, res: Response): Promise<
 export const createProduct = async (req: Request, res: Response): Promise<void> => {
   try {
     const productRepository = AppDataSource.getRepository(Product);
+    const shopRepository = AppDataSource.getRepository(Shop);
     const producerRepository = AppDataSource.getRepository(Producer);
     const userId = req.user?.userId;
 
@@ -133,7 +141,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
     // Find producer by user ID
     const producer = await producerRepository.findOne({
       where: { user: { id: userId } },
-      relations: ['user']
+      relations: ['user', 'shops']
     });
 
     if (!producer) {
@@ -149,12 +157,24 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
       unit, 
       description, 
       images = ['/placeholder.svg'],
-      isAvailable = true 
+      isAvailable = true,
+      shopId
     } = req.body;
 
     // Validate required fields
-    if (!name || !price || !unit || !category) {
-      res.status(400).json({ message: 'Missing required fields: name, price, unit, category' });
+    if (!name || !price || !unit || !category || !shopId) {
+      res.status(400).json({ message: 'Missing required fields: name, price, unit, category, shopId' });
+      return;
+    }
+
+    // Verify the shop belongs to this producer
+    const shop = await shopRepository.findOne({
+      where: { id: shopId, producer: { id: producer.id } },
+      relations: ['producer']
+    });
+
+    if (!shop) {
+      res.status(403).json({ message: 'Shop not found or you do not have permission to add products to it' });
       return;
     }
 
@@ -168,7 +188,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
     product.description = description || '';
     product.images = Array.isArray(images) ? images : [images || '/placeholder.svg'];
     product.isAvailable = isAvailable;
-    product.producer = producer;
+    product.shop = shop;
 
     const savedProduct = await productRepository.save(product);
 
@@ -185,6 +205,8 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
       description: savedProduct.description,
       unit: savedProduct.unit,
       isAvailable: savedProduct.isAvailable,
+      shopId: savedProduct.shop.id,
+      shopName: savedProduct.shop.name,
       createdAt: savedProduct.createdAt,
       updatedAt: savedProduct.updatedAt
     };
@@ -212,7 +234,7 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
     // Find producer by user ID
     const producer = await producerRepository.findOne({
       where: { user: { id: userId } },
-      relations: ['user']
+      relations: ['user', 'shops']
     });
 
     if (!producer) {
@@ -220,14 +242,13 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Find product belonging to this producer
-    const product = await productRepository.findOne({
-      where: { 
-        id,
-        producer: { id: producer.id }
-      },
-      relations: ['producer']
-    });
+    // Get shop IDs for this producer
+    const shopIds = producer.shops.map(shop => shop.id);    // Find product belonging to this producer's shops
+    const product = await productRepository.createQueryBuilder('product')
+      .leftJoinAndSelect('product.shop', 'shop')
+      .where('product.id = :id', { id })
+      .andWhere('shop.id IN (:...shopIds)', { shopIds })
+      .getOne();
 
     if (!product) {
       res.status(404).json({ message: 'Product not found or you do not have permission to edit it' });
@@ -270,6 +291,8 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
       description: savedProduct.description,
       unit: savedProduct.unit,
       isAvailable: savedProduct.isAvailable,
+      shopId: savedProduct.shop.id,
+      shopName: savedProduct.shop.name,
       createdAt: savedProduct.createdAt,
       updatedAt: savedProduct.updatedAt
     };
@@ -297,7 +320,7 @@ export const deleteProduct = async (req: Request, res: Response): Promise<void> 
     // Find producer by user ID
     const producer = await producerRepository.findOne({
       where: { user: { id: userId } },
-      relations: ['user']
+      relations: ['user', 'shops']
     });
 
     if (!producer) {
@@ -305,14 +328,15 @@ export const deleteProduct = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Find product belonging to this producer
-    const product = await productRepository.findOne({
-      where: { 
-        id,
-        producer: { id: producer.id }
-      },
-      relations: ['producer']
-    });
+    // Get shop IDs for this producer
+    const shopIds = producer.shops.map(shop => shop.id);
+
+    // Find product belonging to this producer's shops
+    const product = await productRepository.createQueryBuilder('product')
+      .leftJoinAndSelect('product.shop', 'shop')
+      .where('product.id = :id', { id })
+      .andWhere('shop.id IN (:...shopIds)', { shopIds })
+      .getOne();
 
     if (!product) {
       res.status(404).json({ message: 'Product not found or you do not have permission to delete it' });
@@ -335,7 +359,7 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
 
     const product = await productRepository.findOne({
       where: { id, isAvailable: true },
-      relations: ['producer', 'producer.user']
+      relations: ['shop', 'shop.producer', 'shop.producer.user']
     });
 
     if (!product) {
@@ -353,16 +377,17 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
       description: product.description,
       image: product.images?.[0] || '/placeholder.svg',
       images: product.images || [],
-      producer: product.producer.shopName,
-      producerId: product.producer.id,
+      producer: product.shop.name,
+      producerId: product.shop.producer.id,
+      shopId: product.shop.id,
       stock: product.stock,
       isAvailable: product.isAvailable,
       producerInfo: {
-        id: product.producer.id,
-        shopName: product.producer.shopName,
-        description: product.producer.description,
-        address: product.producer.address,
-        pickupInfo: product.producer.pickupInfo
+        id: product.shop.producer.id,
+        shopName: product.shop.name,
+        description: product.shop.description,
+        address: product.shop.address,
+        pickupInfo: product.shop.pickupInfo
       }
     };
 

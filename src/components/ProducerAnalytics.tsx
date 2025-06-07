@@ -32,11 +32,40 @@ const ProducerAnalytics = () => {
   useEffect(() => {
     loadAnalytics();
   }, []);
+  
   const loadAnalytics = async () => {
     try {
       setLoading(true);
-      const data = await api.orders.getStats();
-      setAnalytics(data);
+      // Since the backend doesn't have stats endpoint yet, use mock data for now
+      // TODO: Replace with real API call once backend is implemented
+      const mockData: AnalyticsData = {
+        totalRevenue: 1247.50,
+        totalOrders: 23,
+        averageOrderValue: 54.22,
+        customerCount: 18,
+        revenueGrowth: 12.5,
+        ordersGrowth: 5.2,
+        monthlyData: [
+          { month: 'Jan', revenue: 1200, orders: 24 },
+          { month: 'Fév', revenue: 1400, orders: 28 },
+          { month: 'Mar', revenue: 1100, orders: 22 },
+          { month: 'Avr', revenue: 1600, orders: 32 },
+          { month: 'Mai', revenue: 1800, orders: 36 },
+          { month: 'Juin', revenue: 1247, orders: 23 }
+        ],
+        topProducts: [
+          { productName: 'Tomates bio', totalSold: 45, revenue: 450 },
+          { productName: 'Miel de lavande', totalSold: 12, revenue: 320 },
+          { productName: 'Courgettes', totalSold: 30, revenue: 240 },
+          { productName: 'Salade', totalSold: 25, revenue: 180 },
+          { productName: 'Radis', totalSold: 15, revenue: 57 }
+        ]
+      };
+      
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setAnalytics(mockData);
       setError(null);
     } catch (err) {
       console.error('Error loading analytics:', err);
