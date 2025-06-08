@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Package, Clock, CheckCircle, XCircle, Eye, MapPin } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -98,11 +97,11 @@ const OrderManagement = () => {
   };  const updateOrderStatus = async (orderId: number, newStatus: Order['status']) => {
     try {
       // Map frontend status to backend status
-      const backendStatus = newStatus === 'pending' ? 'PENDING' :
-                          newStatus === 'confirmed' ? 'PREPARED' :
-                          newStatus === 'ready' ? 'READY' :
-                          newStatus === 'completed' ? 'PICKED_UP' :
-                          newStatus === 'cancelled' ? 'CANCELLED' : 'PENDING';
+      const backendStatus = newStatus === 'pending' ? 'en_attente' :
+                          newStatus === 'confirmed' ? 'preparee' :
+                          newStatus === 'ready' ? 'prete' :
+                          newStatus === 'completed' ? 'retiree' :
+                          newStatus === 'cancelled' ? 'annulee' : 'en_attente';
       
       await api.orders.updateStatus(orderId.toString(), backendStatus);
       
@@ -254,7 +253,10 @@ const OrderManagement = () => {
                   {order.status === 'pending' && (
                     <Button 
                       size="sm" 
-                      onClick={() => updateOrderStatus(order.id, 'confirmed')}
+                      onClick={() => {
+                        console.log(`Attempting to update order ${order.id} to status 'confirmed'`);
+                        updateOrderStatus(order.id, 'confirmed');
+                      }}
                       className="bg-blue-600 hover:bg-blue-700"
                     >
                       Confirmer la commande
