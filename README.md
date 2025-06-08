@@ -185,42 +185,111 @@ docker-compose up
 
 ## Design Patterns
 
-The project implements several design patterns:
+The project implements several design patterns to ensure maintainability, scalability, and separation of concerns:
 
-1. **MVC Pattern**
-   - Models: TypeORM entities
-   - Views: React components
-   - Controllers: Express route handlers
+### 1. MVC (Model-View-Controller) Pattern
+- **Models**: TypeORM entities representing database tables
+  - User entity for authentication and user management
+  - Product entity for product catalog
+  - Order entity for order management
+  - Cart entity for shopping cart functionality
+- **Views**: React components for user interface
+  - Page components (Home, Products, Cart, etc.)
+  - Reusable UI components (Button, Card, Form, etc.)
+  - Layout components (Header, Footer, Sidebar)
+- **Controllers**: Express route handlers
+  - AuthController for user authentication
+  - ProductController for product management
+  - OrderController for order processing
+  - CartController for cart operations
 
-2. **Repository Pattern**
-   - Data access abstraction through TypeORM repositories
+### 2. Repository Pattern
+- **Data Access Layer**: TypeORM repositories providing a clean API for database operations
+  - UserRepository: User data operations
+  - ProductRepository: Product CRUD operations
+  - OrderRepository: Order management
+  - CartRepository: Cart operations
+- **Benefits**:
+  - Centralized data access logic
+  - Easier testing through dependency injection
+  - Consistent data access patterns
+  - Simplified transaction management
 
-3. **Singleton Pattern**
-   - Database connection management
-   - Redis client management
+### 3. Singleton Pattern
+- **Database Connection**: Ensures a single database connection instance throughout the application
+  - Manages connection pooling
+  - Handles connection lifecycle
+  - Provides global access point
+- **Redis Client**: Maintains a single Redis client instance
+  - Manages Redis connection
+  - Handles caching operations
+  - Provides session management
 
-4. **Strategy Pattern**
-   - Payment processing strategies
-   - Authentication strategies
+### 4. Strategy Pattern
+- **Payment Processing**:
+  - Stripe payment implementation
+  - PayPal payment implementation
+  - Cash on delivery implementation
+  - Easy addition of new payment methods
+- **Authentication**:
+  - JWT authentication
+  - OAuth authentication
+  - Local authentication
+  - Extensible for new auth methods
 
-5. **Observer Pattern**
-   - Event handling in React components
-   - WebSocket notifications
+### 5. Observer Pattern
+- **React Component Events**:
+  - Product list updates
+  - Cart state changes
+  - User session updates
+  - Real-time notifications
+- **WebSocket Notifications**:
+  - Order status updates
+  - Inventory changes
+  - Price updates
+  - System notifications
+
+### 6. Factory Pattern
+- **Component Creation**:
+  - Dynamic UI component generation
+  - Form field creation
+  - Modal dialog creation
+  - Notification creation
+
+### 7. Decorator Pattern
+- **API Request Handling**:
+  - Request logging
+  - Error handling
+  - Authentication checks
+  - Rate limiting
+  - Caching
+
+These design patterns contribute to:
+- Code reusability and maintainability
+- Separation of concerns
+- Testability
+- Scalability
+- Flexibility for future changes
 
 ## UML Diagrams
 
-The project includes the following UML diagrams (in the `docs` directory):
+The project includes the following UML diagrams:
 
 1. **Use Case Diagram**
+   ![Use Case Diagram](docs/images/use-case.png)
    - Shows interactions between users and the system
    - Covers main features like authentication, shopping, and order management
 
 2. **Class Diagram**
+   ![Class Diagram](docs/images/class-diagram.png)
    - Illustrates the system's class structure
    - Shows relationships between entities
 
 3. **Sequence Diagrams**
+   ![Order Processing Sequence](docs/images/sequence-order.png)
    - Order processing flow
+   
+   ![Authentication Sequence](docs/images/sequence-auth.png)
    - Authentication flow
 
 ## Contributing
