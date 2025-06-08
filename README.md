@@ -116,8 +116,8 @@ npm run dev
 ## Database Setup
 
 1. Create the database:
-```sql
-CREATE DATABASE community_market;
+```bash
+sudo -u postgres createdb community_market
 ```
 
 2. The database schema will be automatically created by TypeORM migrations when the server starts.
