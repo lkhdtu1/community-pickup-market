@@ -3,6 +3,7 @@ import { User } from './User';
 import { Order } from './Order';
 import { PaymentMethod } from './PaymentMethod';
 import { Address } from './Address';
+import { Cart } from './Cart';
 
 @Entity('customers')
 export class Customer {
@@ -36,9 +37,11 @@ export class Customer {
 
   @OneToMany(() => PaymentMethod, paymentMethod => paymentMethod.customer)
   paymentMethods: PaymentMethod[];
-
   @OneToMany(() => Address, address => address.customer)
   addresses: Address[];
+
+  @OneToOne(() => Cart, cart => cart.customer)
+  cart: Cart;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;

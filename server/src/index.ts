@@ -9,6 +9,7 @@ import orderRoutes from './routes/order.routes';
 import userRoutes from './routes/user.routes';
 import shopRoutes from './routes/shop.routes';
 import paymentRoutes from './routes/payment.routes';
+import cartRoutes from './routes/cart.routes';
 import rateLimiters from './middleware/rateLimiting.middleware';
 import { globalErrorHandler } from './services/errorService';
 
@@ -48,6 +49,7 @@ app.use('/api/shops', shopRoutes);
 app.use('/api/orders', rateLimiters.orderRateLimit, orderRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/cart', cartRoutes);
 
 // Health check endpoint
 app.get('/health', (_req, res) => {

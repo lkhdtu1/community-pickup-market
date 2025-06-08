@@ -193,6 +193,55 @@ class EmailService {
 
     await this.transporter.sendMail(mailOptions);
   }
+
+  async sendLowStockNotification(data: {
+    producerEmail: string;
+    productName: string;
+    currentStock: number;
+    shopName: string;
+  }): Promise<void> {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #dc2626;">⚠️ Stock faible détecté</h2>
+        
+        <p>Bonjour,</p>
+        
+        <p>Votre produit <strong>${data.productName}</strong> dans ${data.shopName} a un stock faible.</p>
+        
+        <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 16px; margin: 20px 0;">
+          <h3 style="margin: 0 0 8px 0; color: #dc2626;">Stock actuel: ${data.currentStock} unité(s)</h3>
+          <p style="margin: 0; color: #374151;">Il est temps de réapprovisionner ce produit pour éviter les ruptures de stock.</p>
+        </div>
+        
+        <p>Actions recommandées:</p>
+        <ul>
+          <li>📦 <strong>Réapprovisionner</strong> le produit</li>
+          <li>📝 <strong>Mettre à jour</strong> le stock dans votre tableau de bord</li>
+          <li>⚠️ <strong>Considérer</strong> marquer le produit comme non disponible temporairement</li>
+        </ul>
+        
+        <p>
+          <a href="https://community-pickup-market.com/producer/products" 
+             style="background-color: #16a34a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+            Gérer mes produits
+          </a>
+        </p>
+        
+        <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
+          Community Pickup Market - Votre marketplace local
+        </p>
+      </div>
+    `;
+
+    const mailOptions = {
+      from: process.env.SMTP_FROM || 'noreply@community-pickup-market.com',
+      to: data.producerEmail,
+      subject: `⚠️ Stock faible: ${data.productName}`,
+      html,
+    };
+
+    await this.transporter.sendMail(mailOptions);
+  }
 }
 
 export const emailService = new EmailService();
