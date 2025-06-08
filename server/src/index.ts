@@ -32,15 +32,6 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // Apply general rate limiting to all routes
 app.use(rateLimiters.generalRateLimit);
 
-// Initialize database connection
-AppDataSource.initialize()
-  .then(() => {
-    console.log('Database connected successfully');
-  })
-  .catch((error) => {
-    console.error('Error connecting to database:', error);
-  });
-
 // Routes - Apply specific rate limiting where needed
 app.use('/api/auth', rateLimiters.authRateLimit, authRoutes);
 app.use('/api/products', productRoutes);
@@ -59,8 +50,20 @@ app.get('/health', (_req, res) => {
 // Global error handler (must be last)
 app.use(globalErrorHandler);
 
-// Start server
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-}); 
+// Start server and initialize DB only if not in test environment
+if (process.env.NODE_ENV !== 'test') {
+  AppDataSource.initialize()
+    .then(() => {
+      console.log('Database connected successfully');
+    })
+    .catch((error) => {
+      console.error('Error connecting to database:', error);
+    });
+
+  const PORT = process.env.PORT || 3001;
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
+}
+
+export { app }; 
