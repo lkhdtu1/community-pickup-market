@@ -108,7 +108,6 @@ const ProviderAccount = () => {
     { id: 'products', label: 'Mes produits', icon: Package },
     { id: 'orders', label: 'Commandes', icon: ShoppingCart },
     { id: 'analytics', label: 'Analytiques', icon: TrendingUp },
-    { id: 'profile', label: 'Profil boutique', icon: User },
     { id: 'settings', label: 'Paramètres', icon: Settings },
   ];
 
