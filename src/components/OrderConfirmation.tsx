@@ -144,7 +144,7 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
           quantity: item.quantity,
           price: item.price
         })),
-        pickupPoint: selectedPickupPoint,
+        pickupPoint: selectedPickupPoint.address,
         paymentMethodId: useNewPaymentMethod ? null : selectedPaymentMethod,
         paymentIntentId: useNewPaymentMethod ? paymentIntentId : null,
         billingAddressId: selectedAddress,

@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 
 // Initialize Stripe with secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_default', {
-  apiVersion: '2024-06-20'
+  apiVersion: '2024-04-10'
 });
 
 export const createPaymentIntent = async (req: Request, res: Response): Promise<void> => {

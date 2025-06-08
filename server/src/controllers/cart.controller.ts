@@ -141,7 +141,7 @@ export const addToCart = async (req: Request, res: Response): Promise<void> => {
       cartItem.productName = product.name;
       cartItem.price = product.price;
       cartItem.unit = product.unit;
-      cartItem.producer = product.shop.name;
+      cartItem.producer = product.shop.producer.businessName || product.shop.producer.farmName || `${product.shop.producer.firstName || ''} ${product.shop.producer.lastName || ''}`.trim() || 'Unknown';
       cartItem.producerId = product.shop.producer.id;
       cartItem.quantity = quantity;
       cartItem.image = product.images[0] || '/placeholder.svg';
@@ -151,9 +151,9 @@ export const addToCart = async (req: Request, res: Response): Promise<void> => {
     }
 
     res.json({ message: 'Item added to cart successfully' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Add to cart error:', error);
-    res.status(500).json({ message: 'Error adding item to cart' });
+    res.status(500).json({ message: 'Error adding item to cart', details: error.message });
   }
 };
 
@@ -396,7 +396,7 @@ export const syncCart = async (req: Request, res: Response): Promise<void> => {
           cartItem.productName = product.name;
           cartItem.price = product.price;
           cartItem.unit = product.unit;
-          cartItem.producer = product.shop.name;
+          cartItem.producer = product.shop.producer.businessName || product.shop.producer.farmName || `${product.shop.producer.firstName || ''} ${product.shop.producer.lastName || ''}`.trim() || 'Unknown';
           cartItem.producerId = product.shop.producer.id;
           cartItem.quantity = localItem.quantity;
           cartItem.image = product.images[0] || '/placeholder.svg';

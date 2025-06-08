@@ -13,7 +13,7 @@ const router = Router();
 
 // Customer routes
 router.get('/customer', authenticate, authorize([UserRole.CUSTOMER]), getCustomerOrders);
-router.post('/', authenticate, authorize([UserRole.CUSTOMER]), createOrder);
+router.post('/', authenticate, authorize([UserRole.CUSTOMER, UserRole.PRODUCER]), createOrder);
 
 // Producer routes
 router.get('/producer', authenticate, authorize([UserRole.PRODUCER]), getProducerOrders);

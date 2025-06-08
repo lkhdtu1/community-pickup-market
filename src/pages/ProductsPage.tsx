@@ -103,19 +103,24 @@ const ProductsPage = () => {
     } finally {
       setLoading(false);
     }
-  };  const handleAddToCart = (product: Product) => {
-    const cartItem = {
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      unit: product.unit,
-      producer: product.producer.name || product.producer.shopName || 'Unknown',
-      producerId: product.producer.id,
-      image: product.imageUrl || '/placeholder.svg',
-      category: product.category
-    };
-    addToCart(cartItem);
-    alert(`${product.name} ajouté au panier !`);
+  };  const handleAddToCart = async (product: Product) => {
+    try {
+      // The addToCart function in CartContext expects the item (without quantity) and quantity separately
+      await addToCart({ 
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        unit: product.unit,
+        producer: product.producer.name || product.producer.shopName || 'Unknown',
+        producerId: product.producer.id,
+        image: product.imageUrl || '/placeholder.svg',
+        category: product.category
+      }, 1); // Pass 1 as the default quantity
+      alert(`${product.name} ajouté au panier !`);
+    } catch (error) {
+      console.error('Error adding product to cart:', error);
+      alert('Erreur lors de l\'ajout du produit au panier. Veuillez réessayer.');
+    }
   };
 
   const handleCheckout = () => {
@@ -123,7 +128,10 @@ const ProductsPage = () => {
     setIsPickupSelectorOpen(true);
   };
   const handlePickupPointSelect = async (point: any) => {
-    try {      // Group cart items by producer ID
+    try {
+      console.log('Attempting to create order...');
+      console.log('Current authentication token (from localStorage):', localStorage.getItem('token'));
+      // Group cart items by producer ID
       const itemsByProducer = cartItems.reduce((acc, item) => {
         const producerId = item.producerId;
         if (!acc[producerId]) {

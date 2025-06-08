@@ -1,8 +1,9 @@
-const API_BASE_URL = 'http://localhost:3001/api';
+export const API_BASE_URL = 'http://localhost:3001/api';
 
 // Helper function to get auth headers
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
+  console.log('DEBUG: Token retrieved from localStorage for auth headers:', token);
   return {
     'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` })
@@ -26,7 +27,11 @@ export const authAPI = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-    return handleResponse(response);
+    const data = await handleResponse(response);
+    if (data.token) {
+      localStorage.setItem('token', data.token);
+    }
+    return data;
   },
 
   register: async (userData: {
