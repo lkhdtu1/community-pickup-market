@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -20,13 +19,13 @@ interface MapViewProps {
   pickupPoints: PickupPoint[];
   onPointSelect: (point: PickupPoint) => void;
   selectedPoint?: PickupPoint | null;
+  mapboxToken: string;
 }
 
-const MapView = ({ pickupPoints, onPointSelect, selectedPoint }: MapViewProps) => {
+const MapView = ({ pickupPoints, onPointSelect, selectedPoint, mapboxToken }: MapViewProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
-  const [mapboxToken, setMapboxToken] = useState('');
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
 
   useEffect(() => {
@@ -49,11 +48,7 @@ const MapView = ({ pickupPoints, onPointSelect, selectedPoint }: MapViewProps) =
 
   useEffect(() => {
     if (!mapContainer.current || !userLocation) return;
-
-    if (!mapboxToken) {
-      return;
-    }
-
+    if (!mapboxToken) return;
     mapboxgl.accessToken = mapboxToken;
     
     // Initialize map
@@ -190,16 +185,7 @@ const MapView = ({ pickupPoints, onPointSelect, selectedPoint }: MapViewProps) =
         <MapPin className="w-12 h-12 text-gray-400 mb-4" />
         <h3 className="text-lg font-semibold text-gray-700 mb-2">Configuration de la carte</h3>
         <p className="text-gray-600 text-center mb-4">
-          Entrez votre token Mapbox pour afficher la carte interactive
-        </p>
-        <input
-          type="text"
-          placeholder="Token Mapbox public"
-          className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-          onChange={(e) => setMapboxToken(e.target.value)}
-        />
-        <p className="text-xs text-gray-500 mt-2">
-          Obtenez votre token sur <a href="https://mapbox.com/" target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline">mapbox.com</a>
+          Le token Mapbox est requis pour afficher la carte interactive.
         </p>
       </div>
     );

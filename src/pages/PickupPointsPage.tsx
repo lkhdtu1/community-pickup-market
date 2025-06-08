@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Search, Filter, MapPin, Clock, Navigation } from 'lucide-react';
 import Header from '../components/Header';
@@ -234,6 +233,7 @@ const PickupPointsPage = () => {
                 pickupPoints={filteredPoints}
                 onPointSelect={handlePointSelect}
                 selectedPoint={selectedPoint}
+                mapboxToken="pk.eyJ1Ijoid2llbmVyYXNkc2EiLCJhIjoiY21ibXl4OHlqMWJ4NjJqczU4YzcydnBxYiJ9.hTuC8asrq1-vv_ycS7MvYQ"
               />
             )}
           </div>
