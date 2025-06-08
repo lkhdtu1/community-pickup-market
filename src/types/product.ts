@@ -26,6 +26,7 @@ export interface CartItem {
   price: number;
   unit: string;
   producer: string; // Producer name/shop name
+  producerId: string; // Producer ID for order creation
   image: string;
   category: string;
   quantity: number;

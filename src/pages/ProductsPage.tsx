@@ -110,6 +110,7 @@ const ProductsPage = () => {
       price: product.price,
       unit: product.unit,
       producer: product.producer.name || product.producer.shopName || 'Unknown',
+      producerId: product.producer.id,
       image: product.imageUrl || '/placeholder.svg',
       category: product.category
     };
@@ -122,32 +123,32 @@ const ProductsPage = () => {
     setIsPickupSelectorOpen(true);
   };
   const handlePickupPointSelect = async (point: any) => {
-    try {
-      // Group cart items by producer
+    try {      // Group cart items by producer ID
       const itemsByProducer = cartItems.reduce((acc, item) => {
-        const producerName = item.producer;
-        if (!acc[producerName]) {
-          acc[producerName] = [];
+        const producerId = item.producerId;
+        if (!acc[producerId]) {
+          acc[producerId] = [];
         }
-        acc[producerName].push({
+        acc[producerId].push({
           productId: item.id,
           quantity: item.quantity
         });
         return acc;
       }, {} as Record<string, Array<{productId: string, quantity: number}>>);
 
-      // Find the first producer ID from our products list
-      const firstProducerId = products.length > 0 ? products[0].producer.id : 'unknown';
-      
-      const orderData = {
-        producerId: firstProducerId,
-        items: Object.values(itemsByProducer)[0] || [],
-        pickupPoint: point.name,
-        pickupDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        notes: `Point de retrait: ${point.address}`
-      };
+      // Create orders for each producer
+      const orderPromises = Object.entries(itemsByProducer).map(([producerId, items]) => {
+        const orderData = {
+          producerId,
+          items,
+          pickupPoint: point.name,
+          pickupDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          notes: `Point de retrait: ${point.address}`
+        };
+        return api.orders.create(orderData);
+      });
 
-      await api.orders.create(orderData);
+      await Promise.all(orderPromises);
       
       clearCart();
       setIsPickupSelectorOpen(false);

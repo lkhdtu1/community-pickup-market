@@ -1,7 +1,8 @@
-# Manual Testing Checklist for Product Interface Fixes
+# Manual Testing Checklist - Community Pickup Market
+# Order Flow Fix Verification & Producer Information Management
 
 ## 🎯 Test Objectives
-Verify that all Product interface fixes work correctly in the browser and that backend UUID strings are properly handled throughout the application.
+Verify that the "order incomplete after choosing pickup point" issue is resolved and that producer information management works correctly throughout the application.
 
 ## ✅ Pre-Test Setup
 1. **Start the development server**: `npm run dev`

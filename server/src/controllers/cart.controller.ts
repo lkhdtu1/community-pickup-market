@@ -36,15 +36,14 @@ export const getCart = async (req: Request, res: Response): Promise<void> => {
       cart.customer = customer;
       cart.items = [];
       cart = await cartRepository.save(cart);
-    }
-
-    // Format cart items for frontend
+    }    // Format cart items for frontend
     const formattedItems = cart.items.map(item => ({
       id: item.productId,
       name: item.productName,
       price: parseFloat(item.price.toString()),
       unit: item.unit,
       producer: item.producer,
+      producerId: item.producerId,
       quantity: item.quantity,
       image: item.image,
       category: item.category
@@ -135,8 +134,7 @@ export const addToCart = async (req: Request, res: Response): Promise<void> => {
 
       existingItem.quantity = newQuantity;
       await cartItemRepository.save(existingItem);
-    } else {
-      // Add new item to cart
+    } else {      // Add new item to cart
       const cartItem = new CartItem();
       cartItem.cart = cart;
       cartItem.productId = product.id;
@@ -144,6 +142,7 @@ export const addToCart = async (req: Request, res: Response): Promise<void> => {
       cartItem.price = product.price;
       cartItem.unit = product.unit;
       cartItem.producer = product.shop.name;
+      cartItem.producerId = product.shop.producer.id;
       cartItem.quantity = quantity;
       cartItem.image = product.images[0] || '/placeholder.svg';
       cartItem.category = product.category;
@@ -369,12 +368,10 @@ export const syncCart = async (req: Request, res: Response): Promise<void> => {
 
     // Process each local cart item
     for (const localItem of localCartItems) {
-      if (!localItem.id || !localItem.quantity) continue;
-
-      // Verify product exists
+      if (!localItem.id || !localItem.quantity) continue;      // Verify product exists
       const product = await productRepository.findOne({
         where: { id: localItem.id, isAvailable: true },
-        relations: ['shop']
+        relations: ['shop', 'shop.producer']
       });
 
       if (!product) continue;
@@ -391,8 +388,7 @@ export const syncCart = async (req: Request, res: Response): Promise<void> => {
           existingItem.quantity = mergedQuantity;
           await cartItemRepository.save(existingItem);
         }
-      } else {
-        // Add new item if stock is available
+      } else {        // Add new item if stock is available
         if (product.stock >= localItem.quantity) {
           const cartItem = new CartItem();
           cartItem.cart = cart;
@@ -401,6 +397,7 @@ export const syncCart = async (req: Request, res: Response): Promise<void> => {
           cartItem.price = product.price;
           cartItem.unit = product.unit;
           cartItem.producer = product.shop.name;
+          cartItem.producerId = product.shop.producer.id;
           cartItem.quantity = localItem.quantity;
           cartItem.image = product.images[0] || '/placeholder.svg';
           cartItem.category = product.category;
@@ -414,14 +411,13 @@ export const syncCart = async (req: Request, res: Response): Promise<void> => {
     const updatedCart = await cartRepository.findOne({
       where: { customer: { id: customer.id } },
       relations: ['items']
-    });
-
-    const formattedItems = updatedCart?.items.map(item => ({
+    });    const formattedItems = updatedCart?.items.map(item => ({
       id: item.productId,
       name: item.productName,
       price: parseFloat(item.price.toString()),
       unit: item.unit,
       producer: item.producer,
+      producerId: item.producerId,
       quantity: item.quantity,
       image: item.image,
       category: item.category

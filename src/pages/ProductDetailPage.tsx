@@ -113,6 +113,7 @@ const ProductDetailPage = () => {
       price: product.price,
       unit: product.unit,
       producer: product.producer?.shopName || product.producer?.name || 'Unknown',
+      producerId: product.producer?.id || 'unknown',
       image: product.imageUrl || '/placeholder.svg',
       category: product.category
     };

@@ -10,7 +10,9 @@ import {
 import {
   getProducerProfile,
   updateProducerProfile,
-  getProducerStats
+  getProducerStats,
+  getProducerInformation,
+  updateProducerInformation
 } from '../controllers/producer.controller';
 import {
   getPaymentMethods,
@@ -49,5 +51,7 @@ router.delete('/customer/addresses/:id', authenticate, authorize([UserRole.CUSTO
 router.get('/producer/profile', authenticate, authorize([UserRole.PRODUCER]), getProducerProfile);
 router.put('/producer/profile', authenticate, authorize([UserRole.PRODUCER]), updateProducerProfile);
 router.get('/producer/stats', authenticate, authorize([UserRole.PRODUCER]), getProducerStats);
+router.get('/producer/information', authenticate, authorize([UserRole.PRODUCER]), getProducerInformation);
+router.put('/producer/information', authenticate, authorize([UserRole.PRODUCER]), updateProducerInformation);
 
 export default router;

@@ -124,14 +124,11 @@ const Index = () => {  const { addToCart, cartItemsCount, cartItems, updateQuant
     setSelectedPickupPoint(point);
     setIsPickupSelectorOpen(false);
     setIsOrderConfirmationOpen(true);
-  };
-  const handleOrderConfirm = async (orderData: any) => {
+  };  const handleOrderConfirm = async (orderData: any) => {
     try {
       // Group cart items by producer
       const itemsByProducer = cartItems.reduce((acc, item) => {
-        // For now, we'll assume all items are from the same producer
-        // In a real implementation, you'd need to group by actual producer ID
-        const producerId = '1'; // This would come from the product data
+        const producerId = item.producerId;
         if (!acc[producerId]) {
           acc[producerId] = [];
         }

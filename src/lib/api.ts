@@ -187,11 +187,48 @@ export const producersAPI = {
       headers: getAuthHeaders(),
       body: JSON.stringify(profileData)
     });
-    return handleResponse(response);
-  },
+    return handleResponse(response);  },
   getStats: async () => {
     const response = await fetch(`${API_BASE_URL}/users/producer/stats`, {
       headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  getInformation: async () => {
+    const response = await fetch(`${API_BASE_URL}/users/producer/information`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  updateInformation: async (informationData: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    businessName?: string;
+    businessType?: string;
+    siretNumber?: string;
+    vatNumber?: string;
+    businessAddress?: string;
+    farmName?: string;
+    farmDescription?: string;
+    farmSize?: string;
+    productionMethods?: string[];
+    certifications?: string[];
+    contactHours?: string;
+    websiteUrl?: string;
+    socialMedia?: {
+      facebook: string;
+      instagram: string;
+      twitter: string;
+    };
+  }) => {
+    const response = await fetch(`${API_BASE_URL}/users/producer/information`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(informationData)
     });
     return handleResponse(response);
   },

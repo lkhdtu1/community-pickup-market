@@ -40,9 +40,11 @@ export class CartItem {
 
   @Column()
   unit: string;
-
   @Column()
   producer: string;
+
+  @Column()
+  producerId: string;
 
   @Column('int')
   quantity: number;
