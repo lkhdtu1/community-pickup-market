@@ -7,7 +7,7 @@ import { Customer } from '../models/Customer';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-export const register = async (req: Request, res: Response) => {
+export const register = async (req: Request, res: Response): Promise<Response | void> => {
   try {
     const userRepository = AppDataSource.getRepository(User);
     const producerRepository = AppDataSource.getRepository(Producer);
@@ -113,7 +113,7 @@ export const login = async (req: Request, res: Response) => {
     const payload = { userId: user.id, role: user.role };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
 
-    res.json({
+    return res.json({
       message: 'Login successful',
       token,
       user: {
@@ -125,6 +125,6 @@ export const login = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ message: 'Error logging in' });
+    return res.status(500).json({ message: 'Error logging in' });
   }
 }; 
