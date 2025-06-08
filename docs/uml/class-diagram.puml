@@ -1,0 +1,106 @@
+@startuml Community Pickup Market Class Diagram
+
+skinparam classAttributeIconSize 0
+skinparam class {
+    BackgroundColor White
+    ArrowColor Black
+    BorderColor Black
+}
+
+' Entities
+class User {
+    +id: UUID
+    +email: string
+    +password: string
+    +role: UserRole
+    +createdAt: Date
+    +updatedAt: Date
+}
+
+class Customer {
+    +id: UUID
+    +userId: UUID
+    +firstName: string
+    +lastName: string
+    +phone: string
+    +address: string
+}
+
+class Producer {
+    +id: UUID
+    +userId: UUID
+    +businessName: string
+    +description: string
+    +address: string
+    +phone: string
+}
+
+class Product {
+    +id: UUID
+    +producerId: UUID
+    +name: string
+    +description: string
+    +price: number
+    +stock: number
+    +imageUrl: string
+    +createdAt: Date
+    +updatedAt: Date
+}
+
+class Order {
+    +id: UUID
+    +customerId: UUID
+    +status: OrderStatus
+    +totalAmount: number
+    +createdAt: Date
+    +updatedAt: Date
+}
+
+class OrderItem {
+    +id: UUID
+    +orderId: UUID
+    +productId: UUID
+    +quantity: number
+    +price: number
+}
+
+class Cart {
+    +id: UUID
+    +customerId: UUID
+    +createdAt: Date
+    +updatedAt: Date
+}
+
+class CartItem {
+    +id: UUID
+    +cartId: UUID
+    +productId: UUID
+    +quantity: number
+}
+
+' Relationships
+User "1" -- "1" Customer
+User "1" -- "1" Producer
+Producer "1" -- "*" Product
+Customer "1" -- "*" Order
+Order "1" -- "*" OrderItem
+Product "1" -- "*" OrderItem
+Customer "1" -- "1" Cart
+Cart "1" -- "*" CartItem
+Product "1" -- "*" CartItem
+
+' Enums
+enum UserRole {
+    CUSTOMER
+    PRODUCER
+}
+
+enum OrderStatus {
+    PENDING
+    CONFIRMED
+    PROCESSING
+    COMPLETED
+    CANCELLED
+}
+
+@enduml 

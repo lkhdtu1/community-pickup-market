@@ -1,0 +1,37 @@
+@startuml Authentication Sequence
+
+skinparam sequence {
+    ArrowColor Black
+    ActorBorderColor Black
+    LifeLineBorderColor Black
+    ParticipantBorderColor Black
+    ParticipantBackgroundColor White
+}
+
+actor User
+participant "Frontend" as Frontend
+participant "Backend API" as API
+participant "Auth Service" as Auth
+database "Database" as DB
+
+User -> Frontend: Enter credentials
+Frontend -> API: POST /api/auth/login
+API -> Auth: Validate credentials
+Auth -> DB: Query user
+DB --> Auth: Return user data
+Auth -> Auth: Generate JWT token
+Auth --> API: Return token
+API --> Frontend: Return token + user data
+Frontend -> Frontend: Store token
+Frontend --> User: Redirect to dashboard
+
+User -> Frontend: Access protected route
+Frontend -> API: Request with JWT
+API -> Auth: Verify token
+Auth --> API: Token valid
+API -> DB: Fetch required data
+DB --> API: Return data
+API --> Frontend: Return response
+Frontend --> User: Display protected content
+
+@enduml 

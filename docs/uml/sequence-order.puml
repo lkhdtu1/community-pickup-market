@@ -1,0 +1,37 @@
+@startuml Order Processing Sequence
+
+skinparam sequence {
+    ArrowColor Black
+    ActorBorderColor Black
+    LifeLineBorderColor Black
+    ParticipantBorderColor Black
+    ParticipantBackgroundColor White
+}
+
+actor Customer
+participant "Frontend" as Frontend
+participant "Backend API" as API
+participant "Payment Service" as Payment
+participant "Email Service" as Email
+database "Database" as DB
+
+Customer -> Frontend: Add items to cart
+Frontend -> API: POST /api/cart
+API -> DB: Save cart items
+
+Customer -> Frontend: Proceed to checkout
+Frontend -> API: POST /api/orders
+API -> DB: Create order
+API -> Payment: Process payment
+Payment --> API: Payment confirmation
+API -> DB: Update order status
+API -> Email: Send order confirmation
+Email --> Customer: Order confirmation email
+
+Customer -> Frontend: View order status
+Frontend -> API: GET /api/orders/:id
+API -> DB: Fetch order details
+API --> Frontend: Return order status
+Frontend --> Customer: Display order status
+
+@enduml 
