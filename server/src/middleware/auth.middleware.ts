@@ -29,7 +29,7 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
     ) as JwtPayload;
 
     req.user = decoded;
-    next();
+    return next();
   } catch (error) {
     return res.status(401).json({ message: 'Invalid token' });
   }
@@ -45,6 +45,6 @@ export const authorize = (roles: UserRole[]) => {
       return res.status(403).json({ message: 'Unauthorized access' });
     }
 
-    next();
+    return next();
   };
 }; 

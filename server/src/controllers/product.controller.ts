@@ -4,7 +4,7 @@ import { Product } from '../models/Product';
 import { Producer } from '../models/Producer';
 
 // Get all products (for customers)
-export const getAllProducts = async (req: Request, res: Response) => {
+export const getAllProducts = async (_req: Request, res: Response) => {
   try {
     const productRepository = AppDataSource.getRepository(Product);
     const products = await productRepository.find({
@@ -52,10 +52,10 @@ export const createProduct = async (req: Request, res: Response) => {
     product.producer = producer;
 
     await productRepository.save(product);
-    res.status(201).json(product);
+    return res.status(201).json(product);
   } catch (error) {
     console.error('Error creating product:', error);
-    res.status(500).json({ message: 'Error creating product' });
+    return res.status(500).json({ message: 'Error creating product' });
   }
 };
 
@@ -79,10 +79,10 @@ export const updateProduct = async (req: Request, res: Response) => {
 
     Object.assign(product, req.body);
     await productRepository.save(product);
-    res.json(product);
+    return res.json(product);
   } catch (error) {
     console.error('Error updating product:', error);
-    res.status(500).json({ message: 'Error updating product' });
+    return res.status(500).json({ message: 'Error updating product' });
   }
 };
 
@@ -105,9 +105,9 @@ export const deleteProduct = async (req: Request, res: Response) => {
     }
 
     await productRepository.remove(product);
-    res.json({ message: 'Product deleted successfully' });
+    return res.json({ message: 'Product deleted successfully' });
   } catch (error) {
     console.error('Error deleting product:', error);
-    res.status(500).json({ message: 'Error deleting product' });
+    return res.status(500).json({ message: 'Error deleting product' });
   }
 }; 
