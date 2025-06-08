@@ -111,7 +111,7 @@ const ProviderAccount = () => {
     { id: 'settings', label: 'Paramètres', icon: Settings },
   ];
 
-  // Show shop creation page if user doesn't have a shop
+  // Show shop creation page if userr doesn't have a shop
   if (!hasShop && !loading) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
