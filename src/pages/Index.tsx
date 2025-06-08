@@ -105,17 +105,8 @@ const Index = () => {  const { addToCart, cartItemsCount, cartItems, updateQuant
       name: product.name,
       price: product.price,
       unit: product.unit,
-      image: product.imageUrl,
-      producer: product.producer.name,
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-      producerId: product.producer.id,
-=======
+      image: product.imageUrl,      producer: product.producer.name,
       producerId: product.producer.id, // Add producer ID for easier order processing
->>>>>>> Stashed changes
-=======
-      producerId: product.producer.id, // Add producer ID for easier order processing
->>>>>>> Stashed changes
       category: product.category
     };
     addToCart(cartItem);
@@ -136,12 +127,6 @@ const Index = () => {  const { addToCart, cartItemsCount, cartItems, updateQuant
     try {
       // Group cart items by producer
       const itemsByProducer = cartItems.reduce((acc, item) => {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-        const producerId = item.producerId;
-=======
-=======
->>>>>>> Stashed changes
         // Try to get producer ID from cart item first, then fall back to product lookup
         let producerId = item.producerId;
         
@@ -155,10 +140,6 @@ const Index = () => {  const { addToCart, cartItemsCount, cartItems, updateQuant
           producerId = product.producer.id;
         }
         
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
         if (!acc[producerId]) {
           acc[producerId] = [];
         }
@@ -175,24 +156,18 @@ const Index = () => {  const { addToCart, cartItemsCount, cartItems, updateQuant
         paymentInfo = `Paiement Stripe ID: ${orderData.paymentIntentId}`;
       } else if (orderData.paymentMethodId) {
         paymentInfo = `Moyen de paiement: ${orderData.paymentMethodId}`;
-      }      // Create orders for each producer with payment and billing info
+      }
+
+      // Create orders for each producer with payment and billing info
       const orderPromises = Object.entries(itemsByProducer).map(([producerId, items]) =>
         api.orders.create({
           producerId,
           items,
           pickupPoint: orderData.pickupPoint.name,
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
           notes: `${orderData.notes || ''}\n${paymentInfo}\nAdresse de facturation: ${orderData.billingAddressId || 'Non spécifiée'}`,
           paymentMethodId: orderData.paymentMethodId,
           paymentIntentId: orderData.paymentIntentId,
           paymentStatus: orderData.paymentIntentId ? 'paid' : 'pending'
-=======
-          notes: `${orderData.notes}\n${paymentInfo}\nAdresse de facturation: ${orderData.billingAddressId}`
->>>>>>> Stashed changes
-=======
-          notes: `${orderData.notes}\n${paymentInfo}\nAdresse de facturation: ${orderData.billingAddressId}`
->>>>>>> Stashed changes
         })
       );
 
