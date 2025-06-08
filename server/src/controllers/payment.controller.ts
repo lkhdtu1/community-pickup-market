@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 
 // Initialize Stripe with secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_default', {
-  apiVersion: '2024-04-10'
+  apiVersion: '2024-06-20'
 });
 
 export const createPaymentIntent = async (req: Request, res: Response): Promise<void> => {
@@ -55,6 +55,7 @@ export const confirmPaymentIntent = async (req: Request, res: Response): Promise
       return;
     }
 
+    // Retrieve payment intent to check status
     const paymentIntent = await stripe.paymentIntents.retrieve(payment_intent_id);
 
     res.json({
@@ -65,9 +66,9 @@ export const confirmPaymentIntent = async (req: Request, res: Response): Promise
     });
 
   } catch (error) {
-    console.error('Payment intent confirmation error:', error);
+    console.error('Payment confirmation error:', error);
     res.status(500).json({ 
-      message: 'Failed to confirm payment intent',
+      message: 'Failed to confirm payment',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
@@ -75,7 +76,7 @@ export const confirmPaymentIntent = async (req: Request, res: Response): Promise
 
 export const createCustomer = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, name } = req.body;
+    const { email, name, metadata = {} } = req.body;
     const userId = req.user?.userId;
 
     if (!email) {
@@ -83,11 +84,13 @@ export const createCustomer = async (req: Request, res: Response): Promise<void>
       return;
     }
 
+    // Create Stripe customer
     const customer = await stripe.customers.create({
       email,
       name,
       metadata: {
-        userId: userId?.toString() || ''
+        userId: userId?.toString() || '',
+        ...metadata
       }
     });
 
@@ -115,6 +118,7 @@ export const attachPaymentMethod = async (req: Request, res: Response): Promise<
       return;
     }
 
+    // Attach payment method to customer
     const paymentMethod = await stripe.paymentMethods.attach(payment_method_id, {
       customer: customer_id,
     });
@@ -122,7 +126,7 @@ export const attachPaymentMethod = async (req: Request, res: Response): Promise<
     res.json({
       id: paymentMethod.id,
       type: paymentMethod.type,
-      customer: paymentMethod.customer
+      card: paymentMethod.card
     });
 
   } catch (error) {
@@ -134,43 +138,47 @@ export const attachPaymentMethod = async (req: Request, res: Response): Promise<
   }
 };
 
+// Webhook handler for Stripe events
 export const handleWebhook = async (req: Request, res: Response): Promise<void> => {
   try {
-    const sig = req.headers['stripe-signature'];
-    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const sig = req.headers['stripe-signature'] as string;
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-    if (!sig || !endpointSecret) {
-      res.status(400).send('Missing stripe signature or webhook secret');
+    if (!webhookSecret) {
+      console.error('Stripe webhook secret not configured');
+      res.status(400).send('Webhook secret not configured');
       return;
     }
 
-    let event: Stripe.Event;
-
-    try {
-      event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-    } catch (err) {
-      console.log(`Webhook signature verification failed.`, err);
-      res.status(400).send(`Webhook Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
-      return;
-    }
+    // Verify webhook signature
+    const event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
 
     // Handle the event
     switch (event.type) {
       case 'payment_intent.succeeded':
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        console.log('PaymentIntent was successful!', paymentIntent.id);
+        console.log('Payment succeeded:', paymentIntent.id);
+        // TODO: Update order status, send confirmation email, etc.
         break;
-      case 'payment_method.attached':
-        const paymentMethod = event.data.object as Stripe.PaymentMethod;
-        console.log('PaymentMethod was attached to a Customer!', paymentMethod.id);
+
+      case 'payment_intent.payment_failed':
+        const failedPayment = event.data.object as Stripe.PaymentIntent;
+        console.log('Payment failed:', failedPayment.id);
+        // TODO: Handle failed payment, notify customer, etc.
         break;
+
+      case 'customer.created':
+        const customer = event.data.object as Stripe.Customer;
+        console.log('Customer created:', customer.id);
+        break;
+
       default:
-        console.log(`Unhandled event type ${event.type}`);
+        console.log(`Unhandled event type: ${event.type}`);
     }
 
     res.json({ received: true });
-  } catch (error) {
-    console.error('Webhook error:', error);
+
+  } catch (error) {    console.error('Webhook error:', error);
     res.status(400).send(`Webhook Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };

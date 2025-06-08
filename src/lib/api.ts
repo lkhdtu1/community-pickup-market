@@ -231,11 +231,11 @@ export const producersAPI = {
       body: JSON.stringify(informationData)
     });
     return handleResponse(response);
-  },
-
-  // Alias for compatibility
+  },  // Alias for compatibility
   getPublicProducers: async (search?: string) => {
-    return producersAPI.getAll(search);
+    const response = await producersAPI.getAll(search);
+    // Backend returns { producers: [...], pagination: {...} } but frontend expects direct array
+    return response?.producers || response || [];
   }
 };
 
@@ -407,7 +407,6 @@ export const ordersAPI = {
     });
     return handleResponse(response);
   },
-
   create: async (orderData: {
     producerId: string;
     items: {
@@ -417,6 +416,9 @@ export const ordersAPI = {
     pickupDate?: string;
     pickupPoint?: string;
     notes?: string;
+    paymentMethodId?: string;
+    paymentIntentId?: string;
+    paymentStatus?: string;
   }) => {
     const response = await fetch(`${API_BASE_URL}/orders`, {
       method: 'POST',

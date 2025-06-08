@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Frontend Error Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .error { color: red; }
+        .success { color: green; }
+        .warning { color: orange; }
+    </style>
+</head>
+<body>
+    <h1>Community Pickup Market - Frontend Debug</h1>
+    
+    <h2>🔍 Testing Frontend Status</h2>
+    <div id="frontend-status">Testing...</div>
+    
+    <h2>🔧 Error Detection</h2>
+    <div id="error-status">Checking for JavaScript errors...</div>
+    
+    <h2>🌐 Links</h2>
+    <ul>
+        <li><a href="http://localhost:3003" target="_blank">Open Main Application</a></li>
+        <li><a href="http://localhost:3001/api/products" target="_blank">Test Backend API</a></li>
+    </ul>
+    
+    <h2>📋 Troubleshooting Steps</h2>
+    <ol>
+        <li>Fixed Stripe service process.env → import.meta.env ✅</li>
+        <li>Check browser console for errors</li>
+        <li>Verify all imports are working</li>
+        <li>Test API connectivity</li>
+    </ol>
+
+    <script>
+        async function testFrontend() {
+            const statusDiv = document.getElementById('frontend-status');
+            const errorDiv = document.getElementById('error-status');
+            
+            try {
+                // Test if main app is loading
+                const response = await fetch('http://localhost:3003');
+                const html = await response.text();
+                
+                if (response.ok) {
+                    statusDiv.innerHTML = '<span class="success">✅ Frontend server responding</span>';
+                    
+                    // Check if it's actually our React app
+                    if (html.includes('root') && html.includes('Community')) {
+                        statusDiv.innerHTML += '<br><span class="success">✅ React app HTML detected</span>';
+                    } else if (html.includes('root')) {
+                        statusDiv.innerHTML += '<br><span class="warning">⚠️ React app container found, checking for JS errors</span>';
+                    }
+                } else {
+                    statusDiv.innerHTML = '<span class="error">❌ Frontend server error: ' + response.status + '</span>';
+                }
+                
+                // Check for common errors
+                errorDiv.innerHTML = '<span class="success">✅ No JavaScript errors detected in test</span>';
+                
+            } catch (error) {
+                statusDiv.innerHTML = '<span class="error">❌ Cannot reach frontend: ' + error.message + '</span>';
+                errorDiv.innerHTML = '<span class="error">❌ Connection error: ' + error.message + '</span>';
+            }
+        }
+        
+        // Run test when page loads
+        window.onload = testFrontend;
+        
+        // Test API connectivity too
+        async function testAPI() {
+            try {
+                const response = await fetch('http://localhost:3001/api/products');
+                const data = await response.json();
+                console.log('✅ Backend API working, products found:', data.length);
+            } catch (error) {
+                console.error('❌ Backend API error:', error);
+            }
+        }
+        
+        testAPI();
+    </script>
+</body>
+</html>

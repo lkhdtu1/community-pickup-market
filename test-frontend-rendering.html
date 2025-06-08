@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Frontend Test</title>
+    <script>
+        // Test if the frontend is accessible
+        async function testFrontend() {
+            try {
+                const response = await fetch('http://localhost:3003');
+                const html = await response.text();
+                
+                if (html.includes('Community Pickup Market') || html.includes('root')) {
+                    document.getElementById('result').innerHTML = '✅ Frontend is loading properly';
+                    document.getElementById('status').style.color = 'green';
+                } else {
+                    document.getElementById('result').innerHTML = '⚠️ Frontend response unclear';
+                    document.getElementById('status').style.color = 'orange';
+                }
+            } catch (error) {
+                document.getElementById('result').innerHTML = '❌ Frontend not accessible: ' + error.message;
+                document.getElementById('status').style.color = 'red';
+            }
+        }
+        
+        // Test API connectivity
+        async function testAPI() {
+            try {
+                const response = await fetch('http://localhost:3001/api/products');
+                const data = await response.json();
+                
+                if (data && Array.isArray(data)) {
+                    document.getElementById('api-result').innerHTML = `✅ Backend API working - ${data.length} products found`;
+                    document.getElementById('api-status').style.color = 'green';
+                } else {
+                    document.getElementById('api-result').innerHTML = '⚠️ Backend API unclear response';
+                    document.getElementById('api-status').style.color = 'orange';
+                }
+            } catch (error) {
+                document.getElementById('api-result').innerHTML = '❌ Backend API error: ' + error.message;
+                document.getElementById('api-status').style.color = 'red';
+            }
+        }
+        
+        // Run tests when page loads
+        window.onload = function() {
+            testFrontend();
+            testAPI();
+        };
+    </script>
+</head>
+<body>
+    <h1>Community Pickup Market - System Status</h1>
+    
+    <h2>Frontend Test (Port 3003)</h2>
+    <p id="status">Testing...</p>
+    <div id="result">Checking frontend accessibility...</div>
+    
+    <h2>Backend API Test (Port 3001)</h2>
+    <p id="api-status">Testing...</p>
+    <div id="api-result">Checking backend API...</div>
+    
+    <h2>Quick Links</h2>
+    <ul>
+        <li><a href="http://localhost:3003" target="_blank">Open Frontend Application</a></li>
+        <li><a href="http://localhost:3001/api/products" target="_blank">View Products API</a></li>
+        <li><a href="http://localhost:3001/api/producers" target="_blank">View Producers API</a></li>
+    </ul>
+</body>
+</html>

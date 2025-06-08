@@ -98,7 +98,6 @@ const Index = () => {  const { addToCart, cartItemsCount, cartItems, updateQuant
                         product.description?.toLowerCase().includes(searchQuery.toLowerCase());
     return categoryMatch && producerMatch && searchMatch;
   });
-
   // Helper function to convert Product to CartItem format
   const handleAddToCart = (product: Product) => {
     const cartItem = {
@@ -108,6 +107,7 @@ const Index = () => {  const { addToCart, cartItemsCount, cartItems, updateQuant
       unit: product.unit,
       image: product.imageUrl,
       producer: product.producer.name,
+      producerId: product.producer.id,
       category: product.category
     };
     addToCart(cartItem);
@@ -145,16 +145,15 @@ const Index = () => {  const { addToCart, cartItemsCount, cartItems, updateQuant
         paymentInfo = `Paiement Stripe ID: ${orderData.paymentIntentId}`;
       } else if (orderData.paymentMethodId) {
         paymentInfo = `Moyen de paiement: ${orderData.paymentMethodId}`;
-      }
-
-      // Create orders for each producer with payment and billing info
+      }      // Create orders for each producer with payment and billing info
       const orderPromises = Object.entries(itemsByProducer).map(([producerId, items]) =>
         api.orders.create({
           producerId,
           items,
           pickupPoint: orderData.pickupPoint.name,
-          notes: `${orderData.notes}\n${paymentInfo}\nAdresse de facturation: ${orderData.billingAddressId}`,
-          total: orderData.total,
+          notes: `${orderData.notes || ''}\n${paymentInfo}\nAdresse de facturation: ${orderData.billingAddressId || 'Non spécifiée'}`,
+          paymentMethodId: orderData.paymentMethodId,
+          paymentIntentId: orderData.paymentIntentId,
           paymentStatus: orderData.paymentIntentId ? 'paid' : 'pending'
         })
       );
