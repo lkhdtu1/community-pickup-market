@@ -1,45 +1,45 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { DataSource } from 'typeorm';
+import { AppDataSource } from './database';
 import authRoutes from './routes/auth.routes';
 import productRoutes from './routes/product.routes';
-import { User } from './models/User';
-import { Producer } from './models/Producer';
-import { Customer } from './models/Customer';
-import { Product } from './models/Product';
+import producerRoutes from './routes/producer.routes';
+import orderRoutes from './routes/order.routes';
+import userRoutes from './routes/user.routes';
+import shopRoutes from './routes/shop.routes';
+import paymentRoutes from './routes/payment.routes';
+import cartRoutes from './routes/cart.routes';
+import rateLimiters from './middleware/rateLimiting.middleware';
+import { globalErrorHandler } from './services/errorService';
 
-// Load environment variables
 dotenv.config();
 
-// Create Express app
 const app = express();
 
-// Configure CORS
+// Sécurise les headers HTTP
+app.use(helmet());
+
+// Configure CORS pour limiter les origines autorisées
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3003', 'http://localhost:3004','http://localhost:8080', 'http://localhost:8081', 'http://localhost:8082', 'http://localhost:8083'],
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:3003',
+    'http://localhost:3004',
+    'http://localhost:8080'
+  ],
   credentials: true
 }));
 
-// Middleware
-app.use(express.json());
+// Parse les requêtes JSON et les formulaires volumineux (ex: images)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Database configuration
-export const AppDataSource = new DataSource({
-  type: 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  username: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
-  database: process.env.DB_NAME || 'community_market',
-  synchronize: true,
-  logging: true,
-  entities: [User, Producer, Customer, Product],
-  subscribers: [],
-  migrations: [],
-});
+// Applique le rate limiting global
+app.use(rateLimiters.generalRateLimit);
 
-// Initialize database connection
+// Connexion à la base de données
 AppDataSource.initialize()
   .then(() => {
     console.log('Database connected successfully');
@@ -48,17 +48,40 @@ AppDataSource.initialize()
     console.error('Error connecting to database:', error);
   });
 
-// Routes
-app.use('/api/auth', authRoutes);
+// Définition des routes principales
+app.use('/api/auth', rateLimiters.authRateLimit, authRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/producers', producerRoutes);
+app.use('/api/shops', shopRoutes);
+app.use('/api/orders', rateLimiters.orderRateLimit, orderRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/cart', cartRoutes);
 
-// Health check endpoint
-app.get('/health', (_, res) => {
+// Endpoint de vérification de santé
+app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Start server
+// Gestion globale des erreurs (doit être le dernier middleware)
+app.use(globalErrorHandler);
+
+// Démarrage du serveur sur le port disponible
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-}); 
+
+function startServer(port: number) {
+  const server = app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+  });
+
+  server.on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+      console.warn(`Port ${port} is in use, trying port ${port + 1}...`);
+      startServer(port + 1);
+    } else {
+      console.error('Server error:', err);
+    }
+  });
+}
+
+startServer(Number(PORT));
