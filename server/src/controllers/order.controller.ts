@@ -216,6 +216,14 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
         return;
       }
 
+      // Check stock availability
+      if (product.stock < item.quantity) {
+        res.status(400).json({ 
+          message: `Insufficient stock for ${product.name}. Available: ${product.stock}, Requested: ${item.quantity}` 
+        });
+        return;
+      }
+
       const subtotal = parseFloat(product.price.toString()) * item.quantity;
       total += subtotal;
 
@@ -224,9 +232,10 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
         productName: product.name,
         quantity: item.quantity,
         unitPrice: parseFloat(product.price.toString()),
-        subtotal
+        subtotal,
+        currentStock: product.stock
       });
-    }    // Create order
+    }// Create order
     const order = new Order();
     order.customer = customer;
     order.producer = producer;
@@ -345,13 +354,27 @@ export const updateOrderStatus = async (req: Request, res: Response): Promise<vo
         id: orderId,
         producer: { id: producer.id }
       },
-      relations: ['customer', 'customer.user', 'producer', 'producer.user']
+      relations: ['customer', 'customer.user', 'producer', 'producer.user', 'items']
     });
 
     if (!order) {
       res.status(404).json({ message: 'Order not found or access denied' });
       return;
-    }    order.status = status;
+    }
+
+    const previousStatus = order.status;
+    order.status = status;
+
+    // Handle stock deduction when order is confirmed (status changes to PREPARED)
+    if (previousStatus === OrderStatus.PENDING && status === OrderStatus.PREPARED) {
+      await deductStock(order.items);
+    }
+
+    // Handle stock restoration when order is cancelled
+    if (status === OrderStatus.CANCELLED && previousStatus !== OrderStatus.CANCELLED) {
+      await restoreStock(order.items);
+    }
+
     await orderRepository.save(order);
 
     // Send email notification for status update
@@ -537,5 +560,61 @@ export const getOrderStats = async (req: Request, res: Response): Promise<void> 
   } catch (error) {
     console.error('Get order stats error:', error);
     res.status(500).json({ message: 'Error fetching order statistics' });
+  }
+};
+
+// Stock management helper functions
+const deductStock = async (orderItems: OrderItem[]): Promise<void> => {
+  const productRepository = AppDataSource.getRepository(Product);
+  
+  for (const item of orderItems) {
+    const product = await productRepository.findOne({
+      where: { id: item.productId },
+      relations: ['shop', 'shop.producer', 'shop.producer.user']
+    });
+    
+    if (product) {
+      const newStock = product.stock - item.quantity;
+      product.stock = Math.max(0, newStock); // Prevent negative stock
+      await productRepository.save(product);
+      
+      // Check for low stock and send notification
+      await checkLowStockNotification(product);
+    }
+  }
+};
+
+const restoreStock = async (orderItems: OrderItem[]): Promise<void> => {
+  const productRepository = AppDataSource.getRepository(Product);
+  
+  for (const item of orderItems) {
+    const product = await productRepository.findOne({
+      where: { id: item.productId }
+    });
+    
+    if (product) {
+      product.stock += item.quantity;
+      await productRepository.save(product);
+    }
+  }
+};
+
+const checkLowStockNotification = async (product: Product): Promise<void> => {
+  const LOW_STOCK_THRESHOLD = 5; // Configurable threshold
+  
+  if (product.stock <= LOW_STOCK_THRESHOLD && product.stock > 0) {
+    try {
+      const producerEmail = product.shop?.producer?.user?.email;
+      if (producerEmail) {
+        await emailService.sendLowStockNotification({
+          producerEmail,
+          productName: product.name,
+          currentStock: product.stock,
+          shopName: product.shop?.name || 'Votre boutique'
+        });
+      }
+    } catch (error) {
+      console.error('Error sending low stock notification:', error);
+    }
   }
 };

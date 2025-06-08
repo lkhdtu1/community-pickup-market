@@ -98,7 +98,6 @@ const Index = () => {  const { addToCart, cartItemsCount, cartItems, updateQuant
                         product.description?.toLowerCase().includes(searchQuery.toLowerCase());
     return categoryMatch && producerMatch && searchMatch;
   });
-
   // Helper function to convert Product to CartItem format
   const handleAddToCart = (product: Product) => {
     const cartItem = {
@@ -108,6 +107,7 @@ const Index = () => {  const { addToCart, cartItemsCount, cartItems, updateQuant
       unit: product.unit,
       image: product.imageUrl,
       producer: product.producer.name,
+      producerId: product.producer.id,
       category: product.category
     };
     addToCart(cartItem);
@@ -124,14 +124,11 @@ const Index = () => {  const { addToCart, cartItemsCount, cartItems, updateQuant
     setSelectedPickupPoint(point);
     setIsPickupSelectorOpen(false);
     setIsOrderConfirmationOpen(true);
-  };
-  const handleOrderConfirm = async (orderData: any) => {
+  };  const handleOrderConfirm = async (orderData: any) => {
     try {
       // Group cart items by producer
       const itemsByProducer = cartItems.reduce((acc, item) => {
-        // For now, we'll assume all items are from the same producer
-        // In a real implementation, you'd need to group by actual producer ID
-        const producerId = '1'; // This would come from the product data
+        const producerId = item.producerId;
         if (!acc[producerId]) {
           acc[producerId] = [];
         }
@@ -148,16 +145,15 @@ const Index = () => {  const { addToCart, cartItemsCount, cartItems, updateQuant
         paymentInfo = `Paiement Stripe ID: ${orderData.paymentIntentId}`;
       } else if (orderData.paymentMethodId) {
         paymentInfo = `Moyen de paiement: ${orderData.paymentMethodId}`;
-      }
-
-      // Create orders for each producer with payment and billing info
+      }      // Create orders for each producer with payment and billing info
       const orderPromises = Object.entries(itemsByProducer).map(([producerId, items]) =>
         api.orders.create({
           producerId,
           items,
           pickupPoint: orderData.pickupPoint.name,
-          notes: `${orderData.notes}\n${paymentInfo}\nAdresse de facturation: ${orderData.billingAddressId}`,
-          total: orderData.total,
+          notes: `${orderData.notes || ''}\n${paymentInfo}\nAdresse de facturation: ${orderData.billingAddressId || 'Non spécifiée'}`,
+          paymentMethodId: orderData.paymentMethodId,
+          paymentIntentId: orderData.paymentIntentId,
           paymentStatus: orderData.paymentIntentId ? 'paid' : 'pending'
         })
       );

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stripe Service Test</title>
+</head>
+<body>
+    <h1>Testing Stripe Service</h1>
+    <div id="result"></div>
+    <script type="module">
+        try {
+            console.log('Testing import.meta.env...');
+            console.log('import.meta.env:', import.meta.env);
+            console.log('VITE_STRIPE_PUBLISHABLE_KEY:', import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+            
+            // Test the stripeService import
+            import('./src/services/stripeService.js').then(stripeService => {
+                console.log('Stripe service loaded successfully:', stripeService);
+                document.getElementById('result').innerHTML = '<p style="color: green;">✅ Stripe service loaded successfully!</p>';
+            }).catch(error => {
+                console.error('Error loading stripe service:', error);
+                document.getElementById('result').innerHTML = '<p style="color: red;">❌ Error: ' + error.message + '</p>';
+            });
+        } catch (error) {
+            console.error('Error:', error);
+            document.getElementById('result').innerHTML = '<p style="color: red;">❌ Error: ' + error.message + '</p>';
+        }
+    </script>
+</body>
+</html>

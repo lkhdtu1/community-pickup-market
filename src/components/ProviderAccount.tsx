@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Package, BarChart3, Settings, LogOut, Store, ShoppingCart, TrendingUp } from 'lucide-react';
+import { User, Package, BarChart3, Settings, LogOut, Store, ShoppingCart, TrendingUp, FileText } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { logout, getCurrentUser } from '@/lib/auth';
 import { api } from '@/lib/api';
@@ -8,6 +8,7 @@ import OrderManagement from './OrderManagement';
 import ProducerAnalytics from './ProducerAnalytics';
 import ProducerProfile from './ProducerProfile';
 import ShopManagement from './ShopManagement';
+import ProducerInformation from './ProducerInformation.test';
 
 const ProviderAccount = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -101,9 +102,9 @@ const ProviderAccount = () => {
   const handleLogout = () => {
     logout();
     navigate('/');
-  };
-  const tabs = [
+  };  const tabs = [
     { id: 'dashboard', label: 'Tableau de bord', icon: BarChart3 },
+    { id: 'information', label: 'Informations', icon: FileText },
     { id: 'shops', label: 'Mes boutiques', icon: Store },
     { id: 'products', label: 'Mes produits', icon: Package },
     { id: 'orders', label: 'Commandes', icon: ShoppingCart },
@@ -306,7 +307,10 @@ const ProviderAccount = () => {
                 </button>
               </div>
             </div>
-          )}          {activeTab === 'shops' && <ShopManagement />}
+          )}
+
+          {activeTab === 'information' && <ProducerInformation />}
+          {activeTab === 'shops' && <ShopManagement />}
           {activeTab === 'products' && <ProductManagement />}
           {activeTab === 'orders' && <OrderManagement />}
           {activeTab === 'analytics' && <ProducerAnalytics />}

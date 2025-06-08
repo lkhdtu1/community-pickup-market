@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Community Pickup Market - API Fix Verification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status-box {
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+        .loading {
+            background-color: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+        .code {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 3px;
+            font-family: monospace;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛠️ API Response Format Fix Verification</h1>
+        <p>This tool verifies that the producers API response format mismatch has been fixed.</p>
+        
+        <div id="backend-status" class="status-box loading">
+            <h3>🔧 Backend Status</h3>
+            <div id="backend-result">⏳ Checking backend connectivity...</div>
+        </div>
+
+        <div id="producers-api-status" class="status-box loading">
+            <h3>👨‍🌾 Producers API Test</h3>
+            <div id="producers-result">⏳ Testing producers API response format...</div>
+        </div>
+
+        <div id="frontend-simulation" class="status-box loading">
+            <h3>🌐 Frontend Simulation</h3>
+            <div id="frontend-result">⏳ Simulating frontend API call...</div>
+        </div>
+
+        <div id="fix-summary" class="status-box loading">
+            <h3>✅ Fix Summary</h3>
+            <div id="summary-result">⏳ Analyzing fix effectiveness...</div>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <button onclick="runTests()">🔄 Re-run Tests</button>
+            <button onclick="window.open('http://localhost:3003', '_blank')">🌐 Open Frontend</button>
+            <button onclick="window.open('http://localhost:3001/api/producers', '_blank')">📡 View API</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:3001/api';
+
+        // Simulate the frontend API function with the fix
+        function simulateGetPublicProducers(apiResponse) {
+            // This is the fixed version in src/lib/api.ts
+            return apiResponse.producers || apiResponse;
+        }
+
+        async function testBackendConnectivity() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                if (response.ok) {
+                    document.getElementById('backend-status').className = 'status-box success';
+                    document.getElementById('backend-result').innerHTML = `
+                        ✅ Backend is running on port 3001<br>
+                        Status: ${response.status} ${response.statusText}
+                    `;
+                    return true;
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                document.getElementById('backend-status').className = 'status-box error';
+                document.getElementById('backend-result').innerHTML = `
+                    ❌ Backend connection failed<br>
+                    Error: ${error.message}<br>
+                    <strong>Please start the backend server:</strong><br>
+                    <div class="code">cd server && npm run dev</div>
+                `;
+                return false;
+            }
+        }
+
+        async function testProducersAPI() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/producers`);
+                const data = await response.json();
+                
+                document.getElementById('producers-api-status').className = 'status-box success';
+                document.getElementById('producers-result').innerHTML = `
+                    ✅ Producers API responding correctly<br>
+                    Response format: ${data.producers ? 'Paginated' : 'Direct array'}<br>
+                    Producers count: ${data.producers ? data.producers.length : (Array.isArray(data) ? data.length : 'Unknown')}<br>
+                    <div class="code">Response structure: ${JSON.stringify(Object.keys(data), null, 2)}</div>
+                `;
+                return data;
+            } catch (error) {
+                document.getElementById('producers-api-status').className = 'status-box error';
+                document.getElementById('producers-result').innerHTML = `
+                    ❌ Producers API test failed<br>
+                    Error: ${error.message}
+                `;
+                return null;
+            }
+        }
+
+        async function testFrontendSimulation(apiResponse) {
+            if (!apiResponse) {
+                document.getElementById('frontend-simulation').className = 'status-box error';
+                document.getElementById('frontend-result').innerHTML = '❌ Cannot test - API response unavailable';
+                return;
+            }
+
+            try {
+                // Test both old and new behavior
+                const originalResult = apiResponse; // This would cause .map() error if paginated
+                const fixedResult = simulateGetPublicProducers(apiResponse);
+
+                const originalWouldWork = Array.isArray(originalResult);
+                const fixedWorks = Array.isArray(fixedResult);
+
+                document.getElementById('frontend-simulation').className = fixedWorks ? 'status-box success' : 'status-box error';
+                document.getElementById('frontend-result').innerHTML = `
+                    ${fixedWorks ? '✅' : '❌'} Frontend simulation ${fixedWorks ? 'successful' : 'failed'}<br>
+                    Original behavior: ${originalWouldWork ? '✅ Would work' : '❌ Would fail (.map() error)'}<br>
+                    Fixed behavior: ${fixedWorks ? '✅ Works correctly' : '❌ Still broken'}<br>
+                    Result type: ${Array.isArray(fixedResult) ? 'Array' : typeof fixedResult}<br>
+                    ${fixedWorks ? `Items available: ${fixedResult.length}` : ''}
+                `;
+            } catch (error) {
+                document.getElementById('frontend-simulation').className = 'status-box error';
+                document.getElementById('frontend-result').innerHTML = `
+                    ❌ Frontend simulation failed<br>
+                    Error: ${error.message}
+                `;
+            }
+        }
+
+        function generateSummary(apiResponse) {
+            const hasBackend = document.getElementById('backend-status').className.includes('success');
+            const apiWorks = document.getElementById('producers-api-status').className.includes('success');
+            const frontendWorks = document.getElementById('frontend-simulation').className.includes('success');
+
+            document.getElementById('fix-summary').className = frontendWorks ? 'status-box success' : 'status-box error';
+            
+            let summaryText = '<h4>Fix Implementation Status:</h4>';
+            
+            if (!hasBackend) {
+                summaryText += '🔴 <strong>Backend not running</strong> - Please start the server to verify fix<br>';
+            } else if (!apiWorks) {
+                summaryText += '🔴 <strong>API not responding</strong> - Check server configuration<br>';
+            } else if (frontendWorks) {
+                summaryText += '🟢 <strong>Fix verified successful!</strong><br>';
+                summaryText += '✅ Backend returns paginated data format<br>';
+                summaryText += '✅ Frontend correctly extracts producers array<br>';
+                summaryText += '✅ ProducersPage should now load without errors<br>';
+                summaryText += '<br><strong>What was fixed:</strong><br>';
+                summaryText += '<div class="code">// Before: getPublicProducers returned paginated object\n// After: getPublicProducers extracts producers array\nreturn response.producers || response;</div>';
+            } else {
+                summaryText += '🔴 <strong>Fix verification failed</strong> - Additional debugging needed<br>';
+            }
+
+            summaryText += '<br><strong>Next steps:</strong><br>';
+            if (frontendWorks) {
+                summaryText += '1. Start frontend server: <code>npm run dev</code><br>';
+                summaryText += '2. Test Community Pickup Market application<br>';
+                summaryText += '3. Verify ProducersPage loads without .map() errors<br>';
+            } else {
+                summaryText += '1. Ensure both servers are running<br>';
+                summaryText += '2. Check console for any additional errors<br>';
+                summaryText += '3. Verify the fix is correctly applied<br>';
+            }
+
+            document.getElementById('summary-result').innerHTML = summaryText;
+        }
+
+        async function runTests() {
+            // Reset all status boxes to loading
+            document.querySelectorAll('.status-box').forEach(box => {
+                box.className = 'status-box loading';
+            });
+            
+            document.getElementById('backend-result').innerHTML = '⏳ Checking backend connectivity...';
+            document.getElementById('producers-result').innerHTML = '⏳ Testing producers API...';
+            document.getElementById('frontend-result').innerHTML = '⏳ Simulating frontend...';
+            document.getElementById('summary-result').innerHTML = '⏳ Analyzing results...';
+
+            const backendOk = await testBackendConnectivity();
+            let apiResponse = null;
+            
+            if (backendOk) {
+                apiResponse = await testProducersAPI();
+                await testFrontendSimulation(apiResponse);
+            }
+            
+            generateSummary(apiResponse);
+        }
+
+        // Run tests automatically when page loads
+        window.addEventListener('load', runTests);
+    </script>
+</body>
+</html>

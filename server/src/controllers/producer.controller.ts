@@ -1,11 +1,81 @@
-﻿import { Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { AppDataSource } from '../database';
 import { Producer } from '../models/Producer';
 import { Product } from '../models/Product';
 import { Order, OrderStatus } from '../models/Order';
 import { In } from 'typeorm';
 
-// Get producer profile
+export const getAllProducers = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const producerRepository = AppDataSource.getRepository(Producer);
+    
+    const producers = await producerRepository.find({
+      where: { isActive: true },
+      relations: ['shops', 'user'],
+      order: { createdAt: 'DESC' }
+    });
+
+    const formattedProducers = producers.map(producer => ({
+      id: producer.id,
+      name: producer.user.email,
+      shops: producer.shops.filter(shop => shop.isActive).map(shop => ({
+        id: shop.id,
+        name: shop.name,
+        description: shop.description,
+        address: shop.address,
+        specialties: shop.specialties || [],
+        images: shop.images || [],
+        certifications: shop.certifications || [],
+        pickupInfo: shop.pickupInfo
+      })),
+      createdAt: producer.createdAt
+    }));
+
+    res.json({ producers: formattedProducers, pagination: { page: 1, limit: 20, total: formattedProducers.length, totalPages: 1 } });
+  } catch (error) {
+    console.error('Error fetching producers:', error);
+    res.status(500).json({ message: 'Error fetching producers' });
+  }
+};
+
+export const getProducerPublicProfile = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const producerRepository = AppDataSource.getRepository(Producer);
+    
+    const producer = await producerRepository.findOne({
+      where: { id, isActive: true },
+      relations: ['shops', 'user']
+    });
+
+    if (!producer) {
+      res.status(404).json({ message: 'Producer not found' });
+      return;
+    }
+
+    const formattedProducer = {
+      id: producer.id,
+      name: producer.user.email,
+      shops: producer.shops.filter(shop => shop.isActive).map(shop => ({
+        id: shop.id,
+        name: shop.name,
+        description: shop.description,
+        address: shop.address,
+        specialties: shop.specialties || [],
+        images: shop.images || [],
+        certifications: shop.certifications || [],
+        pickupInfo: shop.pickupInfo
+      })),
+      createdAt: producer.createdAt
+    };
+
+    res.json(formattedProducer);
+  } catch (error) {
+    console.error('Error fetching producer public profile:', error);
+    res.status(500).json({ message: 'Error fetching producer public profile' });
+  }
+};
+
 export const getProducerProfile = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -57,7 +127,6 @@ export const getProducerProfile = async (req: Request, res: Response): Promise<v
   }
 };
 
-// Update producer profile
 export const updateProducerProfile = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -101,7 +170,6 @@ export const updateProducerProfile = async (req: Request, res: Response): Promis
   }
 };
 
-// Get producer stats
 export const getProducerStats = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -181,75 +249,146 @@ export const getProducerStats = async (req: Request, res: Response): Promise<voi
   }
 };
 
-// Get all producers (for customers)
-export const getAllProducers = async (_req: Request, res: Response): Promise<void> => {
+export const getProducerInformation = async (req: Request, res: Response): Promise<void> => {
   try {
-    const producerRepository = AppDataSource.getRepository(Producer);
+    const userId = req.user?.userId;
     
-    const producers = await producerRepository.find({
-      where: { isActive: true },
-      relations: ['shops', 'user'],
-      order: { createdAt: 'DESC' }
-    });
-
-    const formattedProducers = producers.map(producer => ({
-      id: producer.id,
-      name: producer.user.email,
-      shops: producer.shops.filter(shop => shop.isActive).map(shop => ({
-        id: shop.id,
-        name: shop.name,
-        description: shop.description,
-        address: shop.address,
-        specialties: shop.specialties || [],
-        images: shop.images || [],
-        certifications: shop.certifications || [],
-        pickupInfo: shop.pickupInfo
-      })),
-      createdAt: producer.createdAt
-    }));
-
-    res.json(formattedProducers);
-  } catch (error) {
-    console.error('Error fetching producers:', error);
-    res.status(500).json({ message: 'Error fetching producers' });
-  }
-};
-
-// Get producer public profile by ID
-export const getProducerPublicProfile = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const producerRepository = AppDataSource.getRepository(Producer);
-    
-    const producer = await producerRepository.findOne({
-      where: { id, isActive: true },
-      relations: ['shops', 'user']
-    });
-
-    if (!producer) {
-      res.status(404).json({ message: 'Producer not found' });
+    if (!userId) {
+      res.status(401).json({ message: 'User not authenticated' });
       return;
     }
 
-    const formattedProducer = {
-      id: producer.id,
-      name: producer.user.email,
-      shops: producer.shops.filter(shop => shop.isActive).map(shop => ({
-        id: shop.id,
-        name: shop.name,
-        description: shop.description,
-        address: shop.address,
-        specialties: shop.specialties || [],
-        images: shop.images || [],
-        certifications: shop.certifications || [],
-        pickupInfo: shop.pickupInfo
-      })),
-      createdAt: producer.createdAt
+    const producerRepository = AppDataSource.getRepository(Producer);
+    
+    const producer = await producerRepository.findOne({
+      where: { user: { id: userId } },
+      relations: ['user']
+    });
+
+    if (!producer) {
+      res.status(404).json({ message: 'Producer profile not found' });
+      return;
+    }
+
+    const producerInfo = {
+      firstName: producer.firstName || '',
+      lastName: producer.lastName || '',
+      email: producer.user.email,
+      phone: producer.phone || '',
+      businessName: producer.businessName || '',
+      businessType: producer.businessType || '',
+      siretNumber: producer.siretNumber || '',
+      vatNumber: producer.vatNumber || '',
+      businessAddress: producer.businessAddress || '',
+      farmName: producer.farmName || '',
+      farmDescription: producer.farmDescription || '',
+      farmSize: producer.farmSize || '',
+      productionMethods: producer.productionMethods || [],
+      certifications: producer.certifications || [],
+      contactHours: producer.contactHours || '',
+      websiteUrl: producer.websiteUrl || '',
+      socialMedia: producer.socialMedia || {
+        facebook: '',
+        instagram: '',
+        twitter: ''
+      }
     };
 
-    res.json(formattedProducer);
+    res.json(producerInfo);
   } catch (error) {
-    console.error('Error fetching producer public profile:', error);
-    res.status(500).json({ message: 'Error fetching producer public profile' });
+    console.error('Error fetching producer information:', error);
+    res.status(500).json({ message: 'Error fetching producer information' });
+  }
+};
+
+export const updateProducerInformation = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    
+    if (!userId) {
+      res.status(401).json({ message: 'User not authenticated' });
+      return;
+    }
+
+    const producerRepository = AppDataSource.getRepository(Producer);
+    const {
+      firstName,
+      lastName,
+      phone,
+      businessName,
+      businessType,
+      siretNumber,
+      vatNumber,
+      businessAddress,
+      farmName,
+      farmDescription,
+      farmSize,
+      productionMethods,
+      certifications,
+      contactHours,
+      websiteUrl,
+      socialMedia
+    } = req.body;
+    
+    const producer = await producerRepository.findOne({
+      where: { user: { id: userId } },
+      relations: ['user']
+    });
+
+    if (!producer) {
+      res.status(404).json({ message: 'Producer profile not found' });
+      return;
+    }
+
+    // Update producer information
+    if (firstName !== undefined) producer.firstName = firstName;
+    if (lastName !== undefined) producer.lastName = lastName;
+    if (phone !== undefined) producer.phone = phone;
+    if (businessName !== undefined) producer.businessName = businessName;
+    if (businessType !== undefined) producer.businessType = businessType;
+    if (siretNumber !== undefined) producer.siretNumber = siretNumber;
+    if (vatNumber !== undefined) producer.vatNumber = vatNumber;
+    if (businessAddress !== undefined) producer.businessAddress = businessAddress;
+    if (farmName !== undefined) producer.farmName = farmName;
+    if (farmDescription !== undefined) producer.farmDescription = farmDescription;
+    if (farmSize !== undefined) producer.farmSize = farmSize;
+    if (productionMethods !== undefined) producer.productionMethods = productionMethods;
+    if (certifications !== undefined) producer.certifications = certifications;
+    if (contactHours !== undefined) producer.contactHours = contactHours;
+    if (websiteUrl !== undefined) producer.websiteUrl = websiteUrl;
+    if (socialMedia !== undefined) producer.socialMedia = socialMedia;
+    
+    producer.updatedAt = new Date();
+
+    await producerRepository.save(producer);
+
+    const updatedInfo = {
+      firstName: producer.firstName || '',
+      lastName: producer.lastName || '',
+      email: producer.user.email,
+      phone: producer.phone || '',
+      businessName: producer.businessName || '',
+      businessType: producer.businessType || '',
+      siretNumber: producer.siretNumber || '',
+      vatNumber: producer.vatNumber || '',
+      businessAddress: producer.businessAddress || '',
+      farmName: producer.farmName || '',
+      farmDescription: producer.farmDescription || '',
+      farmSize: producer.farmSize || '',
+      productionMethods: producer.productionMethods || [],
+      certifications: producer.certifications || [],
+      contactHours: producer.contactHours || '',
+      websiteUrl: producer.websiteUrl || '',
+      socialMedia: producer.socialMedia || {
+        facebook: '',
+        instagram: '',
+        twitter: ''
+      }
+    };
+
+    res.json(updatedInfo);
+  } catch (error) {
+    console.error('Error updating producer information:', error);
+    res.status(500).json({ message: 'Error updating producer information' });
   }
 };

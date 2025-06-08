@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Status Check</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .status-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 10px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { border-left: 4px solid #4CAF50; }
+        .error { border-left: 4px solid #f44336; }
+        .pending { border-left: 4px solid #ff9800; }
+        .result { 
+            margin: 10px 0; 
+            padding: 10px; 
+            border-radius: 4px; 
+            font-family: monospace;
+        }
+        .success-result { background-color: #e8f5e8; color: #2e7d32; }
+        .error-result { background-color: #ffebee; color: #c62828; }
+        .pending-result { background-color: #fff3e0; color: #ef6c00; }
+        button {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background-color: #1976D2; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Community Pickup Market - System Status</h1>
+    
+    <div class="status-card pending">
+        <h2>🔧 Backend Server Status</h2>
+        <p>Testing connection to http://localhost:3001</p>
+        <div id="backend-result" class="result pending-result">Checking...</div>
+        <button onclick="testBackend()">Test Backend</button>
+    </div>
+
+    <div class="status-card pending">
+        <h2>🎨 Frontend Server Status</h2>
+        <p>Testing connection to http://localhost:3003</p>
+        <div id="frontend-result" class="result pending-result">Checking...</div>
+        <button onclick="testFrontend()">Test Frontend</button>
+    </div>
+
+    <div class="status-card pending">
+        <h2>📊 API Endpoints</h2>
+        <p>Testing key API endpoints</p>
+        <div id="api-result" class="result pending-result">Ready to test</div>
+        <button onclick="testAPI()">Test APIs</button>
+    </div>
+
+    <div class="status-card pending">
+        <h2>💳 Stripe Service</h2>
+        <p>Testing Stripe integration</p>
+        <div id="stripe-result" class="result pending-result">Ready to test</div>
+        <button onclick="testStripe()">Test Stripe</button>
+    </div>
+
+    <div class="status-card">
+        <h2>🔄 Auto Run All Tests</h2>
+        <button onclick="runAllTests()">Run All Tests</button>
+        <button onclick="openMainApp()">Open Main Application</button>
+    </div>
+
+    <script>
+        async function testBackend() {
+            const resultDiv = document.getElementById('backend-result');
+            const card = resultDiv.closest('.status-card');
+            
+            try {
+                resultDiv.textContent = 'Testing backend connection...';
+                resultDiv.className = 'result pending-result';
+                card.className = 'status-card pending';
+                
+                const response = await fetch('http://localhost:3001/api/producers');
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.textContent = `✅ Backend connected! Found ${data.producers?.length || 0} producers`;
+                    resultDiv.className = 'result success-result';
+                    card.className = 'status-card success';
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                resultDiv.textContent = `❌ Backend connection failed: ${error.message}`;
+                resultDiv.className = 'result error-result';
+                card.className = 'status-card error';
+            }
+        }
+
+        async function testFrontend() {
+            const resultDiv = document.getElementById('frontend-result');
+            const card = resultDiv.closest('.status-card');
+            
+            try {
+                resultDiv.textContent = 'Testing frontend connection...';
+                resultDiv.className = 'result pending-result';
+                card.className = 'status-card pending';
+                
+                // Test if we can access the frontend
+                if (window.location.port === '3003') {
+                    resultDiv.textContent = '✅ Frontend is running (you are viewing it now!)';
+                    resultDiv.className = 'result success-result';
+                    card.className = 'status-card success';
+                } else {
+                    resultDiv.textContent = '⚠️ Not currently on frontend port (3003)';
+                    resultDiv.className = 'result pending-result';
+                    card.className = 'status-card pending';
+                }
+            } catch (error) {
+                resultDiv.textContent = `❌ Frontend test failed: ${error.message}`;
+                resultDiv.className = 'result error-result';
+                card.className = 'status-card error';
+            }
+        }
+
+        async function testAPI() {
+            const resultDiv = document.getElementById('api-result');
+            const card = resultDiv.closest('.status-card');
+            
+            try {
+                resultDiv.textContent = 'Testing API endpoints...';
+                resultDiv.className = 'result pending-result';
+                card.className = 'status-card pending';
+                
+                const endpoints = [
+                    { name: 'Products', url: 'http://localhost:3001/api/products' },
+                    { name: 'Producers', url: 'http://localhost:3001/api/producers' },
+                ];
+                
+                const results = [];
+                for (const endpoint of endpoints) {
+                    try {
+                        const response = await fetch(endpoint.url);
+                        if (response.ok) {
+                            results.push(`✅ ${endpoint.name}: OK`);
+                        } else {
+                            results.push(`❌ ${endpoint.name}: HTTP ${response.status}`);
+                        }
+                    } catch (error) {
+                        results.push(`❌ ${endpoint.name}: ${error.message}`);
+                    }
+                }
+                
+                resultDiv.innerHTML = results.join('<br>');
+                const allSuccess = results.every(r => r.includes('✅'));
+                resultDiv.className = allSuccess ? 'result success-result' : 'result error-result';
+                card.className = allSuccess ? 'status-card success' : 'status-card error';
+                
+            } catch (error) {
+                resultDiv.textContent = `❌ API test failed: ${error.message}`;
+                resultDiv.className = 'result error-result';
+                card.className = 'status-card error';
+            }
+        }
+
+        async function testStripe() {
+            const resultDiv = document.getElementById('stripe-result');
+            const card = resultDiv.closest('.status-card');
+            
+            try {
+                resultDiv.textContent = 'Testing Stripe service...';
+                resultDiv.className = 'result pending-result';
+                card.className = 'status-card pending';
+                
+                // Test if environment variables are available
+                if (typeof import.meta !== 'undefined' && import.meta.env) {
+                    const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+                    if (stripeKey) {
+                        resultDiv.textContent = `✅ Stripe configuration found: ${stripeKey.substring(0, 10)}...`;
+                        resultDiv.className = 'result success-result';
+                        card.className = 'status-card success';
+                    } else {
+                        resultDiv.textContent = '⚠️ Stripe key not found in environment';
+                        resultDiv.className = 'result pending-result';
+                        card.className = 'status-card pending';
+                    }
+                } else {
+                    resultDiv.textContent = '⚠️ Environment variables not available (normal for static HTML)';
+                    resultDiv.className = 'result pending-result';
+                    card.className = 'status-card pending';
+                }
+                
+            } catch (error) {
+                resultDiv.textContent = `❌ Stripe test failed: ${error.message}`;
+                resultDiv.className = 'result error-result';
+                card.className = 'status-card error';
+            }
+        }
+
+        async function runAllTests() {
+            await testBackend();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await testFrontend();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await testAPI();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await testStripe();
+        }
+
+        function openMainApp() {
+            window.open('http://localhost:3003', '_blank');
+        }
+
+        // Auto-run tests when page loads
+        window.addEventListener('load', () => {
+            setTimeout(runAllTests, 1000);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Frontend API Debug</title>
+</head>
+<body>
+    <h1>API Debug Test</h1>
+    <div id="results"></div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:3001/api';
+        
+        async function testAPI() {
+            const resultsDiv = document.getElementById('results');
+            
+            try {
+                resultsDiv.innerHTML += '<p>Testing products API...</p>';
+                const response = await fetch(`${API_BASE_URL}/products`);
+                const data = await response.json();
+                resultsDiv.innerHTML += `<p>✅ Products API working! Found ${data.length} products</p>`;
+                
+                resultsDiv.innerHTML += '<p>Testing producers API...</p>';
+                const producersResponse = await fetch(`${API_BASE_URL}/producers`);
+                const producersData = await producersResponse.json();
+                resultsDiv.innerHTML += `<p>✅ Producers API working! Found ${producersData.producers.length} producers</p>`;
+                
+                resultsDiv.innerHTML += '<p>🎉 All API endpoints working correctly!</p>';
+            } catch (error) {
+                resultsDiv.innerHTML += `<p>❌ Error: ${error.message}</p>`;
+                console.error('API Error:', error);
+            }
+        }
+        
+        testAPI();
+    </script>
+</body>
+</html>
