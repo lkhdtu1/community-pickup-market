@@ -5,7 +5,11 @@ export interface CartItem {
   price: number;
   unit: string;
   producer: string;
+<<<<<<< Updated upstream
   producerId: string; // Producer ID for order creation
+=======
+  producerId?: string; // Add optional producer ID for easier order processing
+>>>>>>> Stashed changes
   quantity: number;
   image: string;
   category: string;

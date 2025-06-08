@@ -107,7 +107,11 @@ const Index = () => {  const { addToCart, cartItemsCount, cartItems, updateQuant
       unit: product.unit,
       image: product.imageUrl,
       producer: product.producer.name,
+<<<<<<< Updated upstream
       producerId: product.producer.id,
+=======
+      producerId: product.producer.id, // Add producer ID for easier order processing
+>>>>>>> Stashed changes
       category: product.category
     };
     addToCart(cartItem);
@@ -128,7 +132,23 @@ const Index = () => {  const { addToCart, cartItemsCount, cartItems, updateQuant
     try {
       // Group cart items by producer
       const itemsByProducer = cartItems.reduce((acc, item) => {
+<<<<<<< Updated upstream
         const producerId = item.producerId;
+=======
+        // Try to get producer ID from cart item first, then fall back to product lookup
+        let producerId = item.producerId;
+        
+        if (!producerId) {
+          // Find the product to get the actual producer ID
+          const product = products.find(p => p.id === item.id);
+          if (!product) {
+            console.error(`Product not found for cart item: ${item.id}`);
+            return acc;
+          }
+          producerId = product.producer.id;
+        }
+        
+>>>>>>> Stashed changes
         if (!acc[producerId]) {
           acc[producerId] = [];
         }
@@ -151,10 +171,14 @@ const Index = () => {  const { addToCart, cartItemsCount, cartItems, updateQuant
           producerId,
           items,
           pickupPoint: orderData.pickupPoint.name,
+<<<<<<< Updated upstream
           notes: `${orderData.notes || ''}\n${paymentInfo}\nAdresse de facturation: ${orderData.billingAddressId || 'Non spécifiée'}`,
           paymentMethodId: orderData.paymentMethodId,
           paymentIntentId: orderData.paymentIntentId,
           paymentStatus: orderData.paymentIntentId ? 'paid' : 'pending'
+=======
+          notes: `${orderData.notes}\n${paymentInfo}\nAdresse de facturation: ${orderData.billingAddressId}`
+>>>>>>> Stashed changes
         })
       );
 
