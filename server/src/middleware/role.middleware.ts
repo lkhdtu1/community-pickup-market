@@ -14,5 +14,6 @@ export const checkRole = (roles: UserRole[]) => {
     }
 
     next();
+    return;
   };
 }; 
